@@ -12,6 +12,9 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.location.Location
 import android.location.LocationManager
+import android.location.LocationListener
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import java.net.HttpURLConnection
 import java.net.URL
@@ -68,6 +71,27 @@ class MainActivity : ComponentActivity() {
     private var demoTripStarted = false
     private var routeLine: Polyline? = null
     private var tts: TextToSpeech? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var locationManager: LocationManager? = null
+    private var navigationActive = false
+    private var routeRequestActive = false
+    private var navigationTargetLat = 0.0
+    private var navigationTargetLon = 0.0
+    private var navigationTargetLabel = ""
+    private var routePoints = ArrayList<LatLng>()
+    private var routeManeuvers = ArrayList<RouteManeuver>()
+    private var maneuverIndex = 0
+    private val announcedThresholds = mutableSetOf<Int>()
+    private var deviationCount = 0
+    private var lastRerouteAt = 0L
+    private data class RouteManeuver(val lat: Double, val lon: Double, val instruction: String)
+    private val navigationLocationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) { handleNavigationLocation(location) }
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {}
+    }
 
     private val bg = Color.rgb(17, 17, 19)
     private val panel = Color.rgb(32, 32, 36)
@@ -497,45 +521,269 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun routeTo(destinationLat: Double, destinationLon: Double, label: String) {
+        if (routeRequestActive) return
         val origin = currentLocation()
         if (origin == null) {
             notice("GPS", "მარშრუტისთვის ჯერ GPS მდებარეობა ვერ განისაზღვრა. ჩართეთ მდებარეობა და სცადეთ ხელახლა.")
             return
         }
+        navigationTargetLat = destinationLat
+        navigationTargetLon = destinationLon
+        navigationTargetLabel = label
+        routeRequestActive = true
         val fromLat = origin.latitude
         val fromLon = origin.longitude
         Thread {
-            var message = "მარშრუტის გამოთვლა ვერ მოხერხდა."
-            var points = ArrayList<LatLng>()
+            var error = "მარშრუტის გამოთვლა ვერ მოხერხდა."
+            val points = ArrayList<LatLng>()
+            val maneuvers = ArrayList<RouteManeuver>()
+            var summary = ""
             try {
                 val url = URL("https://router.project-osrm.org/route/v1/driving/$fromLon,$fromLat;$destinationLon,$destinationLat?overview=full&geometries=geojson&steps=true")
                 val connection = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 12000; readTimeout = 15000; requestMethod = "GET"
+                    connectTimeout = 12000
+                    readTimeout = 15000
+                    requestMethod = "GET"
                 }
                 val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
                 connection.disconnect()
+                if (json.optString("code") != "Ok") throw IllegalStateException("OSRM route error")
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val coords = route.getJSONObject("geometry").getJSONArray("coordinates")
                 for (i in 0 until coords.length()) {
                     val pair = coords.getJSONArray(i)
                     points.add(LatLng(pair.getDouble(1), pair.getDouble(0)))
                 }
+                val legs = route.optJSONArray("legs")
+                if (legs != null && legs.length() > 0) {
+                    val steps = legs.getJSONObject(0).optJSONArray("steps")
+                    if (steps != null) {
+                        for (i in 0 until steps.length()) {
+                            val step = steps.getJSONObject(i)
+                            val maneuver = step.optJSONObject("maneuver") ?: continue
+                            val type = maneuver.optString("type")
+                            if (type == "depart" || type == "arrive" || type.isBlank()) continue
+                            val location = maneuver.optJSONArray("location") ?: continue
+                            if (location.length() < 2) continue
+                            val modifier = maneuver.optString("modifier")
+                            val street = step.optString("name").takeIf { it.isNotBlank() }
+                            maneuvers.add(RouteManeuver(
+                                location.getDouble(1),
+                                location.getDouble(0),
+                                maneuverPhrase(type, modifier, street)
+                            ))
+                        }
+                    }
+                }
                 val km = route.getDouble("distance") / 1000.0
                 val mins = route.getDouble("duration") / 60.0
-                message = "$label · %.1f km · %.0f წთ".format(Locale.US, km, mins)
-            } catch (_: Exception) { }
+                summary = "$label · %.1f km · %.0f წთ".format(Locale.US, km, mins)
+                error = ""
+            } catch (_: Exception) {
+                error = "მარშრუტის გამოთვლა ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან."
+            }
             runOnUiThread {
+                routeRequestActive = false
                 if (points.isNotEmpty()) {
                     routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
                     routeLine = map?.addPolyline(PolylineOptions().addAll(points).color(Color.rgb(190, 40, 65)).width(6f))
-                    val target = points.last()
-                    map?.animateCamera(org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(target, 14.5))
-                    tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "intaxi_route")
+                    routePoints = points
+                    routeManeuvers = maneuvers
+                    maneuverIndex = 0
+                    announcedThresholds.clear()
+                    deviationCount = 0
+                    navigationActive = true
+                    startNavigationUpdates()
+                    map?.animateCamera(org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(
+                        LatLng(fromLat, fromLon), 16.0
+                    ))
+                    speakNavigation(summary)
                 } else {
-                    notice("ნავიგაცია", message + "\nსატესტო მარშრუტი ინტერნეტს საჭიროებს.")
+                    notice("ნავიგაცია", error + "\nსატესტო მარშრუტი ინტერნეტს საჭიროებს.")
                 }
             }
         }.start()
+    }
+
+    private fun maneuverPhrase(type: String, modifier: String, street: String?): String {
+        val language = prefs.getString("language", "ქართული") ?: "ქართული"
+        val direction = when (modifier) {
+            "left", "slight left", "sharp left" -> when (language) {
+                "Azərbaycan dili" -> "sola"
+                "Русский" -> "налево"
+                "English" -> "left"
+                else -> "მარცხნივ"
+            }
+            "right", "slight right", "sharp right" -> when (language) {
+                "Azərbaycan dili" -> "sağa"
+                "Русский" -> "направо"
+                "English" -> "right"
+                else -> "მარჯვნივ"
+            }
+            "uturn" -> when (language) {
+                "Azərbaycan dili" -> "geri dönün"
+                "Русский" -> "развернитесь"
+                "English" -> "make a U-turn"
+                else -> "მობრუნდით"
+            }
+            else -> when (language) {
+                "Azərbaycan dili" -> "პირდაპირ გააგრძელეთ"
+                "Русский" -> "продолжайте прямо"
+                "English" -> "continue straight"
+                else -> "გააგრძელეთ პირდაპირ"
+            }
+        }
+        val action = when (type) {
+            "roundabout", "rotary" -> when (language) {
+                "Azərbaycan dili" -> "dairəvi მოძრაობაში $direction çıxın"
+                "Русский" -> "на круговом движении сверните $direction"
+                "English" -> "at the roundabout, take the exit $direction"
+                else -> "წრიულ მოძრაობაზე გადადით $direction"
+            }
+            "merge" -> when (language) {
+                "Azərbaycan dili" -> "$direction birləşin"
+                "Русский" -> "перестройтесь $direction"
+                "English" -> "merge $direction"
+                else -> "შეუერთდით $direction"
+            }
+            "fork" -> when (language) {
+                "Azərbaycan dili" -> "ayrıcda $direction saxlayın"
+                "Русский" -> "на развилке держитесь $direction"
+                "English" -> "keep $direction at the fork"
+                else -> "განშტოებაზე დაიჭირეთ $direction"
+            }
+            else -> when (language) {
+                "Azərbaycan dili" -> "$direction dönün"
+                "Русский" -> "поверните $direction"
+                "English" -> "turn $direction"
+                else -> "მოუხვიეთ $direction"
+            }
+        }
+        val streetText = street?.let {
+            when (language) {
+                "Azərbaycan dili" -> " ქუჩაზე $it"
+                "Русский" -> " на улицу $it"
+                "English" -> " onto $it"
+                else -> " ქუჩაზე $it"
+            }
+        } ?: ""
+        return action + streetText
+    }
+
+    private fun speakNavigation(message: String) {
+        val language = prefs.getString("language", "ქართული") ?: "ქართული"
+        val locale = when (language) {
+            "Azərbaycan dili" -> Locale("az", "AZ")
+            "Русский" -> Locale("ru", "RU")
+            "English" -> Locale.US
+            else -> Locale("ka", "GE")
+        }
+        try {
+            tts?.language = locale
+            tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "intaxi_navigation")
+        } catch (_: Exception) { }
+    }
+
+    private fun startNavigationUpdates() {
+        if (!hasGpsPermission()) return
+        val manager = getSystemService(LOCATION_SERVICE) as LocationManager
+        locationManager = manager
+        navigationActive = true
+        try {
+            for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
+                if (manager.isProviderEnabled(provider)) {
+                    manager.requestLocationUpdates(provider, 1000L, 2f, navigationLocationListener, Looper.getMainLooper())
+                }
+            }
+        } catch (_: SecurityException) {
+            notice("GPS", "ნავიგაციისთვის მდებარეობის ნებართვა საჭიროა.")
+        } catch (_: Exception) { }
+    }
+
+    private fun stopNavigationUpdates() {
+        navigationActive = false
+        try { locationManager?.removeUpdates(navigationLocationListener) } catch (_: Exception) { }
+        locationManager = null
+        routeRequestActive = false
+        mainHandler.removeCallbacksAndMessages(null)
+    }
+
+    private fun handleNavigationLocation(location: Location) {
+        if (!navigationActive) return
+        val current = LatLng(location.latitude, location.longitude)
+        val bearing = if (location.hasBearing()) location.bearing.toDouble() else map?.cameraPosition?.bearing ?: 0.0
+        if (prefs.getBoolean("map_rotate", true)) {
+            val camera = CameraPosition.Builder()
+                .target(current).zoom(17.0).tilt(if (prefs.getBoolean("map_3d", false)) 45.0 else 0.0)
+                .bearing(bearing).build()
+            map?.animateCamera(org.maplibre.android.camera.CameraUpdateFactory.newCameraPosition(camera), 700)
+        } else {
+            map?.animateCamera(org.maplibre.android.camera.CameraUpdateFactory.newLatLng(current), 500)
+        }
+
+        if (maneuverIndex < routeManeuvers.size) {
+            val maneuver = routeManeuvers[maneuverIndex]
+            val distance = FloatArray(1)
+            Location.distanceBetween(location.latitude, location.longitude, maneuver.lat, maneuver.lon, distance)
+            val meters = distance[0].toInt()
+            if (meters <= 25) {
+                maneuverIndex++
+                announcedThresholds.clear()
+            } else {
+                val thresholds = listOf(500, 150, 40)
+                val nextThreshold = thresholds.firstOrNull { meters <= it && !announcedThresholds.contains(it) }
+                if (nextThreshold != null) {
+                    announcedThresholds.add(nextThreshold)
+                    val instruction = when (prefs.getString("language", "ქართული")) {
+                        "Azərbaycan dili" -> when (nextThreshold) {
+                            500 -> "500 metr sonra "
+                            150 -> "150 metr sonra "
+                            else -> "İndi "
+                        }
+                        "Русский" -> when (nextThreshold) {
+                            500 -> "Через 500 метров "
+                            150 -> "Через 150 метров "
+                            else -> "Сейчас "
+                        }
+                        "English" -> when (nextThreshold) {
+                            500 -> "In 500 meters, "
+                            150 -> "In 150 meters, "
+                            else -> "Now, "
+                        }
+                        else -> when (nextThreshold) {
+                            500 -> "500 მეტრში "
+                            150 -> "150 მეტრში "
+                            else -> "ახლა "
+                        }
+                    } + maneuver.instruction
+                    speakNavigation(instruction)
+                }
+            }
+        }
+
+        if (routePoints.isNotEmpty() && !routeRequestActive) {
+            var nearest = Float.MAX_VALUE
+            val sampleStep = (routePoints.size / 250).coerceAtLeast(1)
+            for (i in routePoints.indices step sampleStep) {
+                val point = routePoints[i]
+                val distance = FloatArray(1)
+                Location.distanceBetween(location.latitude, location.longitude, point.latitude, point.longitude, distance)
+                if (distance[0] < nearest) nearest = distance[0]
+            }
+            if (nearest > 90f && location.accuracy <= 60f) deviationCount++ else deviationCount = 0
+            val now = System.currentTimeMillis()
+            if (deviationCount >= 3 && now - lastRerouteAt > 15000L) {
+                deviationCount = 0
+                lastRerouteAt = now
+                speakNavigation(when (prefs.getString("language", "ქართული")) {
+                    "Azərbaycan dili" -> "Marşrutdan kənara çıxdınız. Yeni marşrut hesablanır."
+                    "Русский" -> "Вы отклонились от маршрута. Перестраиваю маршрут."
+                    "English" -> "You are off route. Recalculating."
+                    else -> "მარშრუტიდან გადაუხვიეთ. ვითვლი ახალ მარშრუტს."
+                })
+                routeTo(navigationTargetLat, navigationTargetLon, navigationTargetLabel)
+            }
+        }
     }
 
     private fun showTripCompleted() {
@@ -585,6 +833,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resetDemoTrip() {
+        stopNavigationUpdates()
+        routePoints.clear()
+        routeManeuvers.clear()
+        maneuverIndex = 0
+        announcedThresholds.clear()
         routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
         routeLine = null
         demoTripStarted = false
@@ -1031,5 +1284,5 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState); mapView.onSaveInstanceState(outState)
     }
-    override fun onDestroy() { tts?.stop(); tts?.shutdown(); mapView.onDestroy(); super.onDestroy() }
+    override fun onDestroy() { stopNavigationUpdates(); tts?.stop(); tts?.shutdown(); mapView.onDestroy(); super.onDestroy() }
 }
