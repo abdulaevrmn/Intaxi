@@ -269,7 +269,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(0, dp(1), 0, dp(20))
-            setBackgroundColor(panel)
+            setBackgroundColor(Color.BLACK)
         }
         root.addView(navBar, LinearLayout.LayoutParams(-1, dp(78)))
         navBar.translationY = -dp(39).toFloat()
