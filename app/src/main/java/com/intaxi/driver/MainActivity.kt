@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private var selectedTab = "შეკვეთები"
     private var period = "დღე"
     private var touchY = 0f
+    private var balanceVisible = false
 
     private val bg = Color.rgb(17, 17, 19)
     private val panel = Color.rgb(32, 32, 36)
@@ -91,14 +92,46 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bg)
         }
-        root.addView(TextView(this).apply {
-            text = "İNTAXİ\nმძღოლის აპლიკაცია"
-            textSize = 17f
+        val balanceHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(5), dp(12), dp(5))
+            setBackgroundColor(bg)
+        }
+        val balanceInfo = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            isClickable = true
+            setOnClickListener { showTab("ფინანსები") }
+        }
+        balanceInfo.addView(TextView(this).apply {
+            text = "დღეს გამოიმუშავეთ"
+            textSize = 11f
+            setTextColor(muted)
+            gravity = Gravity.CENTER
+        })
+        val balanceAmount = TextView(this).apply {
+            text = if (balanceVisible) "— ₾" else "••••"
+            textSize = 21f
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(18), 0, 0, 0)
-        }, LinearLayout.LayoutParams(-1, dp(60)))
+            gravity = Gravity.CENTER
+        }
+        balanceInfo.addView(balanceAmount)
+        balanceHeader.addView(balanceInfo, LinearLayout.LayoutParams(0, -1, 1f))
+        balanceHeader.addView(TextView(this).apply {
+            text = if (balanceVisible) "◉" else "⊙"
+            textSize = 22f
+            setTextColor(white)
+            gravity = Gravity.CENTER
+            setPadding(dp(12), 0, dp(12), 0)
+            setOnClickListener {
+                balanceVisible = !balanceVisible
+                balanceAmount.text = if (balanceVisible) "— ₾" else "••••"
+                text = if (balanceVisible) "◉" else "⊙"
+            }
+        }, LinearLayout.LayoutParams(dp(48), -1))
+        root.addView(balanceHeader, LinearLayout.LayoutParams(-1, dp(66)))
         content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         navBar = LinearLayout(this).apply {
@@ -123,7 +156,7 @@ class MainActivity : ComponentActivity() {
             "პროფილი" -> profileScreen()
         }
         buildNav()
-        navBar.visibility = if (online && !navRevealed) View.GONE else View.VISIBLE
+        navBar.visibility = View.VISIBLE
     }
 
     private fun ordersScreen() {
@@ -134,50 +167,20 @@ class MainActivity : ComponentActivity() {
         val mapFrame = FrameLayout(this)
         (mapView.parent as? ViewGroup)?.removeView(mapView)
         mapFrame.addView(mapView, FrameLayout.LayoutParams(-1, -1))
-        radar = makeRadar()
-        mapFrame.addView(radar, FrameLayout.LayoutParams(dp(104), dp(104), Gravity.TOP or Gravity.END).apply {
-            topMargin = dp(48); marginEnd = dp(12)
-        })
-        radar.visibility = if (online) View.VISIBLE else View.GONE
-        radar.findViewWithTag<TextView>("radar_spinner")?.let { spinner ->
-            ObjectAnimator.ofFloat(spinner, View.ROTATION, 0f, 360f).apply {
-                duration = 1900L
-                repeatCount = ObjectAnimator.INFINITE
-                interpolator = LinearInterpolator()
-                start()
-            }
-        }
         val gpsButton = makeGpsButton()
         mapFrame.addView(gpsButton, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER_VERTICAL or Gravity.END).apply {
             marginEnd = dp(13)
         })
-        mapFrame.setOnTouchListener { _, e ->
-            if (e.action == MotionEvent.ACTION_DOWN) touchY = e.y
-            if (e.action == MotionEvent.ACTION_UP && online) {
-                val d = e.y - touchY
-                if (d < -dp(55)) {
-                    navRevealed = true
-                    navBar.visibility = View.VISIBLE
-                } else if (d > dp(55)) {
-                    navRevealed = false
-                    navBar.visibility = View.GONE
-                }
-            }
-            false
-        }
         page.addView(mapFrame, LinearLayout.LayoutParams(-1, 0, 1f))
 
         onlinePanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(11), dp(8), dp(11), dp(8))
-            background = rounded(panel, 17)
-            visibility = if (online) View.GONE else View.VISIBLE
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            gravity = Gravity.CENTER
+            background = rounded(bg, 17)
+            visibility = View.VISIBLE
+            gravity = Gravity.CENTER
         }
-        val stats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        stats.addView(stat("დღის შემოსავალი", "0.00 ₾"), LinearLayout.LayoutParams(0, dp(53), 1f))
-        stats.addView(View(this), LinearLayout.LayoutParams(dp(7), 1))
-        stats.addView(stat("შესრულებული შეკვეთები", "0"), LinearLayout.LayoutParams(0, dp(53), 1f))
-        onlinePanel.addView(stats)
         onlineStatus = TextView(this).apply {
             gravity = Gravity.CENTER
             textSize = 14f
@@ -196,9 +199,9 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { toggleOnline() }
         }
         toggle.background = outlinedButton(panel, red, 16)
-        toggle.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(22)))
-        toggle.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(24)))
-        onlinePanel.addView(toggle, LinearLayout.LayoutParams(-1, dp(53)).apply { topMargin = dp(7) })
+        toggle.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(43)))
+        toggle.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(19)))
+        onlinePanel.addView(toggle, LinearLayout.LayoutParams(-1, dp(70))
         page.addView(onlinePanel)
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
         refreshOnlineUi()
@@ -241,17 +244,17 @@ class MainActivity : ComponentActivity() {
     private fun toggleOnline() {
         online = !online
         navRevealed = false
-        if (::radar.isInitialized) radar.visibility = if (online) View.VISIBLE else View.GONE
-        if (::onlinePanel.isInitialized) onlinePanel.visibility = if (online) View.GONE else View.VISIBLE
-        navBar.visibility = if (online) View.GONE else View.VISIBLE
+        if (::onlinePanel.isInitialized) onlinePanel.visibility = View.VISIBLE
+        navBar.visibility = View.VISIBLE
         refreshOnlineUi()
     }
 
     private fun refreshOnlineUi() {
         if (!::onlineStatus.isInitialized) return
         onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
-        onlineAction.text = if (online) "ოფლაინზე გადასვლა" else "ონლაინში გადასვლა"
-        onlinePanel.background = rounded(panel, 16)
+        onlineAction.text = if (online) "⟳   ოფლაინზე გადასვლა" else "ონლაინში გადასვლა"
+        onlinePanel.background = rounded(bg, 16)
+        if (::navBar.isInitialized) navBar.visibility = View.VISIBLE
     }
 
     private fun makeGpsButton(): View = TextView(this).apply {
@@ -542,7 +545,6 @@ class MainActivity : ComponentActivity() {
                 gravity = Gravity.CENTER
                 isClickable = true
                 setOnClickListener {
-                    if (online) { online = false; navRevealed = false }
                     showTab(tab)
                 }
             }
