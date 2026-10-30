@@ -221,7 +221,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(dp(12), dp(0), dp(12), dp(5))
-            setBackgroundColor(panel)
+            setBackgroundColor(Color.argb(77, 32, 32, 36))
         }
         val balanceInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -269,7 +269,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(0, dp(1), 0, dp(20))
-            setBackgroundColor(Color.argb(77, 32, 32, 36))
+            setBackgroundColor(panel)
         }
         root.addView(navBar, LinearLayout.LayoutParams(-1, dp(78)))
         navBar.translationY = -dp(39).toFloat()
@@ -630,13 +630,13 @@ class MainActivity : ComponentActivity() {
     private fun choose(title: String, options: List<String>, key: String, numeric: Boolean = false) {
         val current = if (numeric) prefs.getInt(key, 60).toString()
             else prefs.getString(key, options[0]) ?: options[0]
-        AlertDialog.Builder(this).setTitle(title)
+        AlertDialog.Builder(this).setTitle(tr(title))
             .setSingleChoiceItems(options.toTypedArray(), options.indexOf(current).coerceAtLeast(0)) { d, i ->
                 if (numeric) prefs.edit().putInt(key, options[i].toInt()).apply()
                 else prefs.edit().putString(key, options[i]).apply()
                 d.dismiss()
-                settingsScreen()
-            }.setNegativeButton("გაუქმება", null).show()
+                if (key == "language") recreate() else settingsScreen()
+            }.setNegativeButton(tr("გაუქმება"), null).show()
     }
 
     private fun switchRow(parent: LinearLayout, name: String, sub: String, key: String, default: Boolean, settings: Boolean) {
