@@ -446,27 +446,12 @@ class MainActivity : ComponentActivity() {
 
     private fun financeScreen() {
         val p = page()
-        p.addView(title("ფინანსები"))
-        p.addView(info("ხელმისაწვდომი ბალანსი", "— ₾", "რეალური ბალანსი გამოჩნდება ანგარიშის სისტემასთან დაკავშირების შემდეგ."))
-        val periods = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("დღე", "კვირა", "თვე").forEach { v ->
-            periods.addView(button(v, period == v) { period = v; showTab("ფინანსები") },
-                LinearLayout.LayoutParams(0, dp(42), 1f).apply { marginEnd = dp(5) })
-        }
-        p.addView(periods)
-        val summary = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = rounded(panel, 15)
-            setPadding(dp(14), dp(7), dp(14), dp(7))
-        }
-        summary.addView(valueRow("შემოსავალი", "— ₾"))
-        summary.addView(valueRow("შესრულებული შეკვეთები", "—"))
-        summary.addView(valueRow("ბონუსი და ჩაი", "— ₾"))
-        summary.addView(valueRow("საკომისიო", "— ₾"))
-        summary.addView(valueRow("ხელზე დარჩენილი", "— ₾", true))
-        p.addView(summary)
-        p.addView(title("ბოლო ოპერაციები"))
-        p.addView(info("ოპერაციების ისტორია", "რეალური ტრანზაქციები გამოჩნდება შეკვეთებისა და ფინანსური სისტემის ჩართვის შემდეგ."))
+        p.addView(title("ბალანსი"))
+        p.addView(info(
+            "ხელმისაწვდომი ბალანსი",
+            "— ₾",
+            "რეალური ბალანსი ანგარიშის სისტემასთან დაკავშირების შემდეგ გამოჩნდება."
+        ))
         scroll(p)
     }
 
@@ -495,7 +480,7 @@ class MainActivity : ComponentActivity() {
         p.addView(title("პარამეტრები"))
         p.addView(title("ენა"))
         p.addView(setting("აპლიკაციის ენა", prefs.getString("language", "ქართული") ?: "ქართული") {
-            choose("ენა", listOf("ქართული", "Azərbaycan dili", "English"), "language")
+            choose("ენა", listOf("ქართული", "Azərbaycan dili", "Русский", "English"), "language")
         })
         p.addView(title("ნავიგაცია"))
         p.addView(setting("ნავიგაციის აპლიკაცია", prefs.getString("navigation", "İNTAXİ რუკა") ?: "İNTAXİ რუკა") {
