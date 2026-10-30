@@ -507,7 +507,7 @@ class MainActivity : ComponentActivity() {
                 demoOrderActive = false
                 demoTripStarted = false
                 onlinePanel.visibility = View.GONE
-                routeToFrom(41.4755, 44.8085, 41.6764, 44.8295, "თბილისი, ორთაჭალა")
+                routeTo(41.4755, 44.8085, "მარნეულის ცენტრალური მოედანი")
                 showTripControls(mapFrame, false)
             }
         }, LinearLayout.LayoutParams(0, dp(47), 1f).apply { marginStart = dp(6) })
@@ -614,7 +614,7 @@ class MainActivity : ComponentActivity() {
             elevation = dp(10).toFloat()
         }
         panelView.addView(TextView(this).apply {
-            text = if (passengerPicked) "მიმდინარეობს მგზავრობა · 8.5 კმ" else "მგზავრამდე · 1.2 კმ"
+            text = if (passengerPicked) "მიმდინარეობს მგზავრობა · თბილისი, ორთაჭალა" else "მგზავრამდე · მარნეულის ცენტრალური მოედანი"
             textSize = 15f; setTextColor(white); setTypeface(null, Typeface.BOLD)
         })
         panelView.addView(Button(this).apply {
@@ -622,7 +622,7 @@ class MainActivity : ComponentActivity() {
             isAllCaps = false; setTextColor(white); background = rounded(red, 10)
             setOnClickListener {
                 if (!passengerPicked) {
-                    routeTo(41.7025, 44.8015, "დანიშნულების ადგილი")
+                    routeToFrom(41.4755, 44.8085, 41.6764, 44.8295, "თბილისი, ორთაჭალა")
                     showTripControls(mapFrame, true)
                 } else {
                     mapFrame.findViewWithTag<View>("intaxi_trip_controls")?.let { mapFrame.removeView(it) }
