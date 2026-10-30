@@ -2,6 +2,8 @@ package com.intaxi.driver
 
 import android.Manifest
 import android.app.AlertDialog
+import android.animation.ObjectAnimator
+import android.view.animation.LinearInterpolator
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -106,6 +108,7 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(panel)
         }
         root.addView(navBar, LinearLayout.LayoutParams(-1, dp(78)))
+        navBar.translationY = -dp(39).toFloat()
         setContentView(root)
         buildNav()
     }
@@ -132,10 +135,22 @@ class MainActivity : ComponentActivity() {
         (mapView.parent as? ViewGroup)?.removeView(mapView)
         mapFrame.addView(mapView, FrameLayout.LayoutParams(-1, -1))
         radar = makeRadar()
-        mapFrame.addView(radar, FrameLayout.LayoutParams(dp(105), dp(105), Gravity.TOP or Gravity.END).apply {
-            topMargin = dp(12); marginEnd = dp(12)
+        mapFrame.addView(radar, FrameLayout.LayoutParams(dp(104), dp(104), Gravity.TOP or Gravity.END).apply {
+            topMargin = dp(48); marginEnd = dp(12)
         })
         radar.visibility = if (online) View.VISIBLE else View.GONE
+        radar.findViewWithTag<TextView>("radar_spinner")?.let { spinner ->
+            ObjectAnimator.ofFloat(spinner, View.ROTATION, 0f, 360f).apply {
+                duration = 1900L
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                start()
+            }
+        }
+        val gpsButton = makeGpsButton()
+        mapFrame.addView(gpsButton, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER_VERTICAL or Gravity.END).apply {
+            marginEnd = dp(13)
+        })
         mapFrame.setOnTouchListener { _, e ->
             if (e.action == MotionEvent.ACTION_DOWN) touchY = e.y
             if (e.action == MotionEvent.ACTION_UP && online) {
@@ -180,6 +195,7 @@ class MainActivity : ComponentActivity() {
             gravity = Gravity.CENTER
             setOnClickListener { toggleOnline() }
         }
+        toggle.background = outlinedButton(panel, red, 16)
         toggle.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(22)))
         toggle.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(24)))
         onlinePanel.addView(toggle, LinearLayout.LayoutParams(-1, dp(53)).apply { topMargin = dp(7) })
@@ -201,11 +217,12 @@ class MainActivity : ComponentActivity() {
         isClickable = true
         setOnClickListener { toggleOnline() }
         addView(TextView(this@MainActivity).apply {
+            tag = "radar_spinner"
             text = "◉"
-            textSize = 25f
+            textSize = 29f
             gravity = Gravity.CENTER
             setTextColor(white)
-        }, LinearLayout.LayoutParams(-1, dp(31)))
+        }, LinearLayout.LayoutParams(-1, dp(35)))
         addView(TextView(this@MainActivity).apply {
             text = "შეკვეთებს\nვეძებთ"
             textSize = 10f
@@ -234,7 +251,36 @@ class MainActivity : ComponentActivity() {
         if (!::onlineStatus.isInitialized) return
         onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
         onlineAction.text = if (online) "ოფლაინზე გადასვლა" else "ონლაინში გადასვლა"
-        onlinePanel.background = rounded(if (online) green else red, 16)
+        onlinePanel.background = rounded(panel, 16)
+    }
+
+    private fun makeGpsButton(): View = TextView(this).apply {
+        text = "◎"
+        textSize = 29f
+        gravity = Gravity.CENTER
+        setTextColor(white)
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.rgb(35, 35, 40))
+            setStroke(dp(2), Color.rgb(220, 220, 225))
+        }
+        elevation = dp(7).toFloat()
+        contentDescription = "ჩემი მდებარეობა"
+        setOnClickListener {
+            if (!hasGpsPermission()) {
+                gpsPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            } else {
+                val m = map
+                if (m != null && mapReady) {
+                    try {
+                        if (!m.locationComponent.isLocationComponentEnabled) enableGps()
+                        m.locationComponent.cameraMode = CameraMode.TRACKING
+                    } catch (_: Exception) {
+                        notice("GPS", "მდებარეობა ჯერ ვერ განისაზღვრა. შეამოწმეთ GPS ტელეფონში.")
+                    }
+                }
+            }
+        }
     }
 
     private fun hasGpsPermission(): Boolean =
@@ -515,6 +561,11 @@ class MainActivity : ComponentActivity() {
 
     private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
         setColor(color); cornerRadius = dp(radius).toFloat()
+    }
+    private fun outlinedButton(fill: Int, stroke: Int, radius: Int) = GradientDrawable().apply {
+        setColor(fill)
+        cornerRadius = dp(radius).toFloat()
+        setStroke(dp(2), stroke)
     }
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
