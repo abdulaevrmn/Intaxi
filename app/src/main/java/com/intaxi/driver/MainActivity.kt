@@ -91,6 +91,127 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
+    private fun tr(value: String): String {
+        val language = prefs.getString("language", "ქართული") ?: "ქართული"
+        if (language == "ქართული") return value
+        val az = mapOf(
+            "დღეს გამოიმუშავეთ" to "Bu gün qazandınız",
+            "შეკვეთები" to "Sifarişlər", "ჩატები" to "Söhbətlər", "ფინანსები" to "Balans", "პროფილი" to "Profil",
+            "ონლაინ" to "Onlayn", "ოფლაინ" to "Oflayn", "ხაზზე გასვლა" to "Xəttə çıx", "ხაზიდან გადასვლა" to "Xətdən çıx",
+            "რომელი ტარიფებით იმუშაოთ?" to "Hansı tariflərlə işləyirsiniz?",
+            "სტანდარტი" to "Standart", "კომფორტი" to "Komfort",
+            "გაუქმება" to "Ləğv et", "შენახვა" to "Yadda saxla", "კარგი" to "Oldu",
+            "ტარიფები" to "Tariflər", "მდებარეობის ნებართვა" to "Məkan icazəsi",
+            "რეალური GPS-ის გამოსაყენებლად İNTAXİ-ს მდებარეობის ნებართვა სჭირდება." to "Real GPS-dən istifadə üçün İNTAXİ-yə məkan icazəsi lazımdır.",
+            "ჩემი მდებარეობა" to "Mənim yerim", "მდებარეობა ჯერ ვერ განისაზღვრა. შეამოწმეთ GPS ტელეფონში." to "Məkan hələ müəyyən edilməyib. Telefonda GPS-i yoxlayın.",
+            "მინიმუმ ერთი ტარიფი ჩართული უნდა იყოს." to "Ən azı bir tarif aktiv olmalıdır.",
+            "GPS ვერ ჩაირთო. შეამოწმეთ ტელეფონის მდებარეობის პარამეტრები." to "GPS açıla bilmədi. Telefonun məkan ayarlarını yoxlayın.",
+            "ბალანსი" to "Balans", "ხელმისაწვდომი ბალანსი" to "Mövcud balans",
+            "რეალური ბალანსი ანგარიშის სისტემასთან დაკავშირების შემდეგ გამოჩნდება." to "Real balans hesab sistemi qoşulduqdan sonra görünəcək.",
+            "მხარდაჭერის ჩატი" to "Dəstək söhbəti",
+            "მხარდაჭერისა და მგზავრებთან მიმოწერა ჩაირთვება სერვერთან და მგზავრის აპლიკაციასთან დაკავშირების შემდეგ." to "Dəstək və sərnişinlərlə yazışma server və sərnişin tətbiqi qoşulduqdan sonra aktiv olacaq.",
+            "რეალური შეტყობინებები და შეკვეთის ჩატი საჭიროებს სერვერს." to "Real mesajlar və sifariş söhbəti üçün server lazımdır.",
+            "მძღოლის ანგარიში" to "Sürücü hesabı", "სახელი და გვარი\nარ არის მითითებული\n\nტელეფონი\nარ არის მითითებული" to "Ad və soyad\nGöstərilməyib\n\nTelefon\nGöstərilməyib",
+            "ტარიფები" to "Tariflər", "ტარიფის ჩართვა / გამორთვა" to "Tarifi aktiv / deaktiv et",
+            "პარამეტრები" to "Ayarlar", "აპლიკაციის პარამეტრები" to "Tətbiq ayarları", "ენა, ნავიგაცია, რუკა, ხმები და სხვა" to "Dil, naviqasiya, xəritə, səslər və digərləri",
+            "ავტომობილი" to "Avtomobil", "ავტომობილის მონაცემები" to "Avtomobil məlumatları",
+            "მონაცემების მართვა დაემატება მძღოლის ანგარიშის მოდულთან ერთად." to "Məlumatların idarəsi sürücü hesabı modulu ilə birlikdə əlavə ediləcək.",
+            "აპლიკაციის შესახებ" to "Tətbiq haqqında", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "İNTAXİ sürücü tətbiqi. Versiya 0.3.0",
+            "გასვლა" to "Çıxış", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Giriş sistemi hələ əlavə edilməyib.",
+            "აპლიკაციის ენა" to "Tətbiqin dili", "ენა" to "Dil",
+            "ნავიგაცია" to "Naviqasiya", "ნავიგაციის აპლიკაცია" to "Naviqasiya tətbiqi", "რუკა" to "Xəritə",
+            "3D რუკა" to "3D xəritə", "რუკის დახრილი 3D ხედვა" to "Xəritənin maili 3D görünüşü",
+            "რუკის ავტომატური ბრუნვა" to "Xəritənin avtomatik fırlanması", "მოძრაობის მიმართულების მიხედვით" to "Hərəkət istiqamətinə uyğun",
+            "სიჩქარის გაფრთხილება" to "Sürət xəbərdarlığı", "სიჩქარის ზღვრის გადაჭერებისას" to "Sürət həddi keçildikdə",
+            "სიჩქარის ზღვარი" to "Sürət həddi", "ხმები" to "Səslər", "შეკვეთის ხმა" to "Sifariş səsi",
+            "ახალი შეკვეთის ხმოვანი სიგნალი" to "Yeni sifariş üçün səs siqnalı", "ხმოვანი გაფრთხილებები" to "Səsli xəbərdarlıqlar",
+            "სიჩქარისა და სისტემის გაფრთხილებები" to "Sürət və sistem xəbərdarlıqları", "სხვა" to "Digər",
+            "შეტყობინებები" to "Bildirişlər", "აპლიკაციის შეტყობინებები" to "Tətbiq bildirişləri",
+            "GPS ნებართვა" to "GPS icazəsi", "ტელეფონის მდებარეობის პარამეტრები" to "Telefonun məkan ayarları",
+            "პარამეტრები ამ ეტაპზე ინახება ამ ტელეფონში. ანგარიშთან სინქრონიზაცია დაემატება სერვერის ჩართვის შემდეგ." to "Ayarlar hazırda bu telefonda saxlanılır. Hesabla sinxronizasiya server qoşulduqdan sonra əlavə ediləcək.",
+            "პროფილზე დაბრუნება" to "Profilə qayıt", "ჩართულია" to "Aktivdir", "გამორთულია" to "Deaktivdir"
+        )
+        val ru = mapOf(
+            "დღეს გამოიმუშავეთ" to "Заработано сегодня",
+            "შეკვეთები" to "Заказы", "ჩატები" to "Чаты", "ფინანსები" to "Баланс", "პროფილი" to "Профиль",
+            "ონლაინ" to "Онлайн", "ოფლაინ" to "Офлайн", "ხაზზე გასვლა" to "Выйти на линию", "ხაზიდან გადასვლა" to "Завершить смену",
+            "რომელი ტარიფებით იმუშაოთ?" to "С какими тарифами работать?",
+            "სტანდარტი" to "Стандарт", "კომფორტი" to "Комфорт",
+            "გაუქმება" to "Отмена", "შენახვა" to "Сохранить", "კარგი" to "Хорошо",
+            "ტარიფები" to "Тарифы", "მდებარეობის ნებართვა" to "Разрешение на геолокацию",
+            "რეალური GPS-ის გამოსაყენებლად İNTAXİ-ს მდებარეობის ნებართვა სჭირდება." to "Для работы GPS приложению İNTAXİ нужен доступ к местоположению.",
+            "ჩემი მდებარეობა" to "Моё местоположение", "მდებარეობა ჯერ ვერ განისაზღვრა. შეამოწმეთ GPS ტელეფონში." to "Местоположение пока не определено. Проверьте GPS на телефоне.",
+            "მინიმუმ ერთი ტარიფი ჩართული უნდა იყოს." to "Должен быть включён хотя бы один тариф.",
+            "GPS ვერ ჩაირთო. შეამოწმეთ ტელეფონის მდებარეობის პარამეტრები." to "Не удалось включить GPS. Проверьте настройки геолокации телефона.",
+            "ბალანსი" to "Баланс", "ხელმისაწვდომი ბალანსი" to "Доступный баланс",
+            "რეალური ბალანსი ანგარიშის სისტემასთან დაკავშირების შემდეგ გამოჩნდება." to "Реальный баланс появится после подключения системы аккаунтов.",
+            "მხარდაჭერის ჩატი" to "Чат поддержки",
+            "მხარდაჭერისა და მგზავრებთან მიმოწერა ჩაირთვება სერვერთან და მგზავრის აპლიკაციასთან დაკავშირების შემდეგ." to "Поддержка и переписка с пассажирами заработают после подключения сервера и приложения пассажира.",
+            "რეალური შეტყობინებები და შეკვეთის ჩატი საჭიროებს სერვერს." to "Для сообщений и чата заказа необходим сервер.",
+            "მძღოლის ანგარიში" to "Аккаунт водителя", "სახელი და გვარი\nარ არის მითითებული\n\nტელეფონი\nარ არის მითითებული" to "Имя и фамилия\nНе указаны\n\nТелефон\nНе указан",
+            "ტარიფის ჩართვა / გამორთვა" to "Включить / выключить тариф",
+            "პარამეტრები" to "Настройки", "აპლიკაციის პარამეტრები" to "Настройки приложения", "ენა, ნავიგაცია, რუკა, ხმები და სხვა" to "Язык, навигация, карта, звуки и другое",
+            "ავტომობილი" to "Автомобиль", "ავტომობილის მონაცემები" to "Данные автомобиля",
+            "მონაცემების მართვა დაემატება მძღოლის ანგარიშის მოდულთან ერთად." to "Управление данными появится вместе с модулем аккаунта водителя.",
+            "აპლიკაციის შესახებ" to "О приложении", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "Приложение водителя İNTAXİ. Версия 0.3.0",
+            "გასვლა" to "Выйти", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Система входа ещё не добавлена.",
+            "აპლიკაციის ენა" to "Язык приложения", "ენა" to "Язык",
+            "ნავიგაცია" to "Навигация", "ნავიგაციის აპლიკაცია" to "Навигационное приложение", "რუკა" to "Карта",
+            "3D რუკა" to "3D-карта", "რუკის დახრილი 3D ხედვა" to "Наклонный 3D-вид карты",
+            "რუკის ავტომატური ბრუნვა" to "Автоматический поворот карты", "მოძრაობის მიმართულების მიხედვით" to "По направлению движения",
+            "სიჩქარის გაფრთხილება" to "Предупреждение о скорости", "სიჩქარის ზღვარი" to "Ограничение скорости",
+            "ხმები" to "Звуки", "შეკვეთის ხმა" to "Звук заказа", "ახალი შეკვეთის ხმოვანი სიგნალი" to "Звуковой сигнал нового заказа",
+            "ხმოვანი გაფრთხილებები" to "Голосовые предупреждения", "სიჩქარისა და სისტემის გაფრთხილებები" to "Предупреждения о скорости и системе",
+            "სხვა" to "Другое", "შეტყობინებები" to "Уведомления", "აპლიკაციის შეტყობინებები" to "Уведомления приложения",
+            "GPS ნებართვა" to "Разрешение GPS", "ტელეფონის მდებარეობის პარამეტრები" to "Настройки геолокации телефона",
+            "პარამეტრები ამ ეტაპზე ინახება ამ ტელეფონში. ანგარიშთან სინქრონიზაცია დაემატება სერვერის ჩართვის შემდეგ." to "Сейчас настройки сохраняются на этом телефоне. Синхронизация с аккаунтом появится после запуска сервера.",
+            "პროფილზე დაბრუნება" to "Вернуться в профиль", "ჩართულია" to "Включено", "გამორთულია" to "Выключено"
+        )
+        val en = mapOf(
+            "დღეს გამოიმუშავეთ" to "Earned today",
+            "შეკვეთები" to "Orders", "ჩატები" to "Chats", "ფინანსები" to "Balance", "პროფილი" to "Profile",
+            "ონლაინ" to "Online", "ოფლაინ" to "Offline", "ხაზზე გასვლა" to "Go online", "ხაზიდან გადასვლა" to "Go offline",
+            "რომელი ტარიფებით იმუშაოთ?" to "Which tariffs do you want to use?",
+            "სტანდარტი" to "Standard", "კომფორტი" to "Comfort",
+            "გაუქმება" to "Cancel", "შენახვა" to "Save", "კარგი" to "OK",
+            "ტარიფები" to "Tariffs", "მდებარეობის ნებართვა" to "Location permission",
+            "რეალური GPS-ის გამოსაყენებლად İNTAXİ-ს მდებარეობის ნებართვა სჭირდება." to "İNTAXİ needs location permission to use real GPS.",
+            "ჩემი მდებარეობა" to "My location", "მდებარეობა ჯერ ვერ განისაზღვრა. შეამოწმეთ GPS ტელეფონში." to "Location is not available yet. Check your phone's GPS.",
+            "მინიმუმ ერთი ტარიფი ჩართული უნდა იყოს." to "At least one tariff must be enabled.",
+            "GPS ვერ ჩაირთო. შეამოწმეთ ტელეფონის მდებარეობის პარამეტრები." to "GPS could not be enabled. Check your phone's location settings.",
+            "ბალანსი" to "Balance", "ხელმისაწვდომი ბალანსი" to "Available balance",
+            "რეალური ბალანსი ანგარიშის სისტემასთან დაკავშირების შემდეგ გამოჩნდება." to "The actual balance will appear after the account system is connected.",
+            "მხარდაჭერის ჩატი" to "Support chat",
+            "მხარდაჭერისა და მგზავრებთან მიმოწერა ჩაირთვება სერვერთან და მგზავრის აპლიკაციასთან დაკავშირების შემდეგ." to "Support and passenger messaging will be enabled after the server and passenger app are connected.",
+            "რეალური შეტყობინებები და შეკვეთის ჩატი საჭიროებს სერვერს." to "Live messages and order chat require a server.",
+            "მძღოლის ანგარიში" to "Driver account", "სახელი და გვარი\nარ არის მითითებული\n\nტელეფონი\nარ არის მითითებული" to "Name and surname\nNot provided\n\nPhone\nNot provided",
+            "ტარიფის ჩართვა / გამორთვა" to "Enable / disable tariff",
+            "პარამეტრები" to "Settings", "აპლიკაციის პარამეტრები" to "App settings", "ენა, ნავიგაცია, რუკა, ხმები და სხვა" to "Language, navigation, map, sounds and more",
+            "ავტომობილი" to "Vehicle", "ავტომობილის მონაცემები" to "Vehicle details",
+            "მონაცემების მართვა დაემატება მძღოლის ანგარიშის მოდულთან ერთად." to "Vehicle management will be added with the driver account module.",
+            "აპლიკაციის შესახებ" to "About app", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "İNTAXİ Driver app. Version 0.3.0",
+            "გასვლა" to "Log out", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Login has not been implemented yet.",
+            "აპლიკაციის ენა" to "App language", "ენა" to "Language",
+            "ნავიგაცია" to "Navigation", "ნავიგაციის აპლიკაცია" to "Navigation app", "რუკა" to "Map",
+            "3D რუკა" to "3D map", "რუკის დახრილი 3D ხედვა" to "Tilted 3D map view",
+            "რუკის ავტომატური ბრუნვა" to "Automatic map rotation", "მოძრაობის მიმართულების მიხედვით" to "Based on direction of travel",
+            "სიჩქარის გაფრთხილება" to "Speed warning", "სიჩქარის ზღვარი" to "Speed limit",
+            "ხმები" to "Sounds", "შეკვეთის ხმა" to "Order sound", "ახალი შეკვეთის ხმოვანი სიგნალი" to "New order sound alert",
+            "ხმოვანი გაფრთხილებები" to "Voice alerts", "სიჩქარისა და სისტემის გაფრთხილებები" to "Speed and system alerts",
+            "სხვა" to "Other", "შეტყობინებები" to "Notifications", "აპლიკაციის შეტყობინებები" to "App notifications",
+            "GPS ნებართვა" to "GPS permission", "ტელეფონის მდებარეობის პარამეტრები" to "Phone location settings",
+            "პარამეტრები ამ ეტაპზე ინახება ამ ტელეფონში. ანგარიშთან სინქრონიზაცია დაემატება სერვერის ჩართვის შემდეგ." to "Settings are currently saved on this phone. Account sync will be added when the server is connected.",
+            "პროფილზე დაბრუნება" to "Back to profile", "ჩართულია" to "Enabled", "გამორთულია" to "Disabled"
+        )
+        return when (language) {
+            "Azərbaycan dili" -> az[value] ?: value
+            "Русский" -> ru[value] ?: value
+            "English" -> en[value] ?: value
+            else -> value
+        }
+    }
+
     private fun buildShell() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -99,8 +220,8 @@ class MainActivity : ComponentActivity() {
         val balanceHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(30), dp(12), dp(5))
-            setBackgroundColor(Color.argb(128, 32, 32, 36))
+            setPadding(dp(12), dp(0), dp(12), dp(5))
+            setBackgroundColor(panel)
         }
         val balanceInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -109,7 +230,7 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { showTab("ფინანსები") }
         }
         balanceInfo.addView(TextView(this).apply {
-            text = "დღეს გამოიმუშავეთ"
+            text = tr("დღეს გამოიმუშავეთ")
             textSize = 11f
             setTextColor(muted)
             gravity = Gravity.CENTER
@@ -141,7 +262,7 @@ class MainActivity : ComponentActivity() {
         }
         balanceInfo.addView(amountRow)
         balanceHeader.addView(balanceInfo, LinearLayout.LayoutParams(0, -1, 1f))
-        root.addView(balanceHeader, LinearLayout.LayoutParams(-1, dp(66)))
+        root.addView(balanceHeader, LinearLayout.LayoutParams(-1, dp(66)).apply { topMargin = dp(38) })
         content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         navBar = LinearLayout(this).apply {
@@ -195,7 +316,7 @@ class MainActivity : ComponentActivity() {
                 setStroke(dp(2), red)
             }
             elevation = dp(7).toFloat()
-            contentDescription = "ტარიფები"
+            contentDescription = tr("ტარიფები")
             setOnClickListener { showQuickTariffs() }
         }
         mapTools.addView(tariffQuick, LinearLayout.LayoutParams(dp(52), dp(52)).apply {
@@ -292,8 +413,8 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshOnlineUi() {
         if (!::onlineStatus.isInitialized) return
-        onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
-        onlineAction.text = if (online) "ხაზიდან გადასვლა" else "ხაზზე გასვლა"
+        onlineStatus.text = tr(if (online) "ონლაინ" else "ოფლაინ")
+        onlineAction.text = tr(if (online) "ხაზიდან გადასვლა" else "ხაზზე გასვლა")
         val actionColor = if (online) Color.rgb(28, 145, 91) else red
         onlineAction.setTextColor(white)
         onlineStatus.setTextColor(white)
@@ -329,7 +450,7 @@ class MainActivity : ComponentActivity() {
             setStroke(dp(2), Color.rgb(100, 29, 45))
         }
         elevation = dp(7).toFloat()
-        contentDescription = "ჩემი მდებარეობა"
+        contentDescription = tr("ჩემი მდებარეობა")
         setOnClickListener {
             if (!hasGpsPermission()) {
                 gpsPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
@@ -354,7 +475,7 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(bg)
         }
         val dialogTitle = TextView(this).apply {
-            text = "რომელი ტარიფებით იმუშაოთ?"
+            text = tr("რომელი ტარიფებით იმუშაოთ?")
             textSize = 15f
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
@@ -362,14 +483,14 @@ class MainActivity : ComponentActivity() {
         }
         box.addView(dialogTitle)
         val standard = android.widget.CheckBox(this).apply {
-            text = "სტანდარტი"
+            text = tr("სტანდარტი")
             textSize = 15f
             setTextColor(white)
             buttonTintList = android.content.res.ColorStateList.valueOf(red)
             isChecked = prefs.getBoolean("tariff_სტანდარტი", true)
         }
         val comfort = android.widget.CheckBox(this).apply {
-            text = "კომფორტი"
+            text = tr("კომფორტი")
             textSize = 15f
             setTextColor(white)
             buttonTintList = android.content.res.ColorStateList.valueOf(red)
@@ -379,8 +500,8 @@ class MainActivity : ComponentActivity() {
         box.addView(comfort)
         val dialog = AlertDialog.Builder(this)
             .setView(box)
-            .setNegativeButton("გაუქმება", null)
-            .setPositiveButton("შენახვა", null)
+            .setNegativeButton(tr("გაუქმება"), null)
+            .setPositiveButton(tr("შენახვა"), null)
             .create()
         dialog.setOnShowListener {
             dialog.window?.setBackgroundDrawable(rounded(bg, 18))
@@ -528,14 +649,14 @@ class MainActivity : ComponentActivity() {
         }
         val labels = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         labels.addView(TextView(this).apply {
-            text = name; textSize = 14f; setTextColor(white); setTypeface(null, Typeface.BOLD)
+            text = tr(name); textSize = 14f; setTextColor(white); setTypeface(null, Typeface.BOLD)
         })
         labels.addView(TextView(this).apply {
-            text = sub; textSize = 11f; setTextColor(muted)
+            text = tr(sub); textSize = 11f; setTextColor(muted)
         })
         row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
         val state = TextView(this).apply {
-            text = if (prefs.getBoolean(key, default)) "ჩართულია" else "გამორთულია"
+            text = tr(if (prefs.getBoolean(key, default)) "ჩართულია" else "გამორთულია")
             textSize = 11f
             setTextColor(if (prefs.getBoolean(key, default)) Color.rgb(95, 220, 145) else muted)
         }
@@ -575,7 +696,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun title(t: String) = TextView(this).apply {
-        text = t; textSize = 20f; setTextColor(white); setTypeface(null, Typeface.BOLD)
+        text = tr(t); textSize = 20f; setTextColor(white); setTypeface(null, Typeface.BOLD)
         setPadding(0, dp(5), 0, dp(10))
     }
 
@@ -584,20 +705,20 @@ class MainActivity : ComponentActivity() {
         setPadding(dp(14), dp(13), dp(14), dp(13))
         background = rounded(panel, 14)
         addView(TextView(this@MainActivity).apply {
-            text = t; textSize = 15f; setTextColor(white); setTypeface(null, Typeface.BOLD)
+            text = tr(t); textSize = 15f; setTextColor(white); setTypeface(null, Typeface.BOLD)
         })
         addView(TextView(this@MainActivity).apply {
-            text = body; textSize = 14f; setTextColor(if (body.contains("—")) muted else white)
+            text = tr(body); textSize = 14f; setTextColor(if (body.contains("—")) muted else white)
             setPadding(0, dp(8), 0, 0)
         })
         if (foot != null) addView(TextView(this@MainActivity).apply {
-            text = foot; textSize = 11f; setTextColor(muted); setPadding(0, dp(5), 0, 0)
+            text = tr(foot); textSize = 11f; setTextColor(muted); setPadding(0, dp(5), 0, 0)
         })
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) }
     }
 
     private fun note(t: String) = TextView(this).apply {
-        text = t; textSize = 12f; setTextColor(muted); setPadding(dp(3), dp(10), dp(3), dp(14))
+        text = tr(t); textSize = 12f; setTextColor(muted); setPadding(dp(3), dp(10), dp(3), dp(14))
     }
 
     private fun stat(t: String, v: String) = LinearLayout(this).apply {
@@ -606,7 +727,7 @@ class MainActivity : ComponentActivity() {
         setPadding(dp(9), dp(4), dp(5), dp(4))
         background = rounded(card, 11)
         addView(TextView(this@MainActivity).apply {
-            text = t; textSize = 10f; setTextColor(muted); maxLines = 1
+            text = tr(t); textSize = 10f; setTextColor(muted); maxLines = 1
         })
         addView(TextView(this@MainActivity).apply {
             text = v; textSize = 18f; setTextColor(white); setTypeface(null, Typeface.BOLD)
@@ -618,7 +739,7 @@ class MainActivity : ComponentActivity() {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, dp(11), 0, dp(11))
         addView(TextView(this@MainActivity).apply {
-            text = t; textSize = 14f; setTextColor(if (strong) white else muted)
+            text = tr(t); textSize = 14f; setTextColor(if (strong) white else muted)
         }, LinearLayout.LayoutParams(0, -2, 1f))
         addView(TextView(this@MainActivity).apply {
             text = v; textSize = 15f
@@ -628,7 +749,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun button(t: String, primary: Boolean, action: () -> Unit) = Button(this).apply {
-        text = t; isAllCaps = false; textSize = 13f; setTextColor(white)
+        text = tr(t); isAllCaps = false; textSize = 13f; setTextColor(white)
         background = rounded(if (primary) red else card, 11)
         setOnClickListener { action() }
     }
@@ -662,7 +783,7 @@ class MainActivity : ComponentActivity() {
                 setTextColor(if (chosen) white else muted)
             }, LinearLayout.LayoutParams(-1, dp(26)))
             item.addView(TextView(this).apply {
-                text = label; textSize = 10f; gravity = Gravity.CENTER
+                text = tr(label); textSize = 10f; gravity = Gravity.CENTER
                 setTextColor(if (chosen) white else muted)
                 if (chosen) setTypeface(null, Typeface.BOLD)
             })
