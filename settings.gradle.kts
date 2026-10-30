@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Intaxi"
-include(":app")
+include(":app", ":passenger")
