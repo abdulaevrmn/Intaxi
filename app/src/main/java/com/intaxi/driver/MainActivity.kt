@@ -348,7 +348,7 @@ class MainActivity : ComponentActivity() {
         p.addView(title("პროფილი"))
         p.addView(info("მძღოლის ანგარიში", "სახელი და გვარი\nარ არის მითითებული\n\nტელეფონი\nარ არის მითითებული"))
         p.addView(title("ტარიფები"))
-        listOf("ეკონომი", "კომფორტი", "კომფორტ+", "ბიზნესი").forEach {
+        listOf("სტანდარტი", "კომფორტი").forEach {
             switchRow(p, it, "ტარიფის ჩართვა / გამორთვა", "tariff_" + it, false, false)
         }
         p.addView(title("პარამეტრები"))
