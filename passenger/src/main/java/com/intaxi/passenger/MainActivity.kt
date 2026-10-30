@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var comfort: Button
     private var selectedTariff = "სტანდარტი"
 
-    private val background = Color.rgb(18, 18, 21)
+    private val bgColor = Color.rgb(18, 18, 21)
     private val panel = Color.rgb(31, 31, 36)
     private val burgundy = Color.rgb(100, 29, 45)
     private val white = Color.WHITE
@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(14), dp(14), dp(12))
-            background = rounded(background, 20)
+            background = rounded(bgColor, 20)
             elevation = dp(9).toFloat()
         }
         column.addView(TextView(this).apply {
