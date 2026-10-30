@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(dp(12), dp(30), dp(12), dp(5))
-            setBackgroundColor(bg)
+            setBackgroundColor(Color.argb(210, 32, 32, 36))
         }
         val balanceInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -121,20 +121,26 @@ class MainActivity : ComponentActivity() {
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
         }
-        balanceInfo.addView(balanceAmount)
-        balanceHeader.addView(balanceInfo, LinearLayout.LayoutParams(0, -1, 1f))
-        balanceHeader.addView(TextView(this).apply {
-            text = if (balanceVisible) "◉" else "⊙"
-            textSize = 22f
-            setTextColor(white)
+        val amountRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(12), 0, dp(12), 0)
-            setOnClickListener {
-                balanceVisible = !balanceVisible
-                balanceAmount.text = if (balanceVisible) "— ₾" else "••••"
+            addView(balanceAmount)
+            addView(TextView(this@MainActivity).apply {
                 text = if (balanceVisible) "◉" else "⊙"
-            }
-        }, LinearLayout.LayoutParams(dp(48), -1))
+                textSize = 20f
+                setTextColor(white)
+                gravity = Gravity.CENTER
+                setPadding(dp(9), 0, dp(9), 0)
+                isClickable = true
+                setOnClickListener {
+                    balanceVisible = !balanceVisible
+                    balanceAmount.text = if (balanceVisible) "— ₾" else "••••"
+                    text = if (balanceVisible) "◉" else "⊙"
+                }
+            })
+        }
+        balanceInfo.addView(amountRow)
+        balanceHeader.addView(balanceInfo, LinearLayout.LayoutParams(0, -1, 1f))
         root.addView(balanceHeader, LinearLayout.LayoutParams(-1, dp(66)))
         content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -142,7 +148,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(0, dp(1), 0, dp(20))
-            setBackgroundColor(panel)
+            setBackgroundColor(Color.argb(179, 32, 32, 36))
         }
         root.addView(navBar, LinearLayout.LayoutParams(-1, dp(78)))
         navBar.translationY = -dp(39).toFloat()
