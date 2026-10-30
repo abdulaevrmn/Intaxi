@@ -507,7 +507,7 @@ class MainActivity : ComponentActivity() {
                 demoOrderActive = false
                 demoTripStarted = false
                 onlinePanel.visibility = View.GONE
-                routeTo(41.4755, 44.8085, "მარნეულის ცენტრალური მოედანი")
+                routeTo(41.475842, 44.812081, "მარნეულის ცენტრალური მოედანი")
                 showTripControls(mapFrame, false)
             }
         }, LinearLayout.LayoutParams(0, dp(47), 1f).apply { marginStart = dp(6) })
@@ -519,7 +519,7 @@ class MainActivity : ComponentActivity() {
 
         Thread {
             try {
-                val url = URL("https://router.project-osrm.org/route/v1/driving/44.8085,41.4755;44.8295,41.6764?overview=false")
+                val url = URL("https://router.project-osrm.org/route/v1/driving/44.812081,41.475842;44.8332,41.6774?overview=false")
                 val connection = (url.openConnection() as HttpURLConnection).apply {
                     connectTimeout = 10000
                     readTimeout = 12000
@@ -622,7 +622,7 @@ class MainActivity : ComponentActivity() {
             isAllCaps = false; setTextColor(white); background = rounded(red, 10)
             setOnClickListener {
                 if (!passengerPicked) {
-                    routeToFrom(41.4755, 44.8085, 41.6764, 44.8295, "თბილისი, ორთაჭალა")
+                    routeToFrom(41.475842, 44.812081, 41.6774, 44.8332, "თბილისი, ორთაჭალა")
                     showTripControls(mapFrame, true)
                 } else {
                     mapFrame.findViewWithTag<View>("intaxi_trip_controls")?.let { mapFrame.removeView(it) }
