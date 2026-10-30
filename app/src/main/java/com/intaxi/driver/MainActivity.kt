@@ -201,34 +201,39 @@ class MainActivity : ComponentActivity() {
         onlinePanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(3), dp(10), dp(3))
+            setPadding(dp(10), dp(4), dp(10), dp(4))
             elevation = dp(6).toFloat()
             isClickable = true
             setOnClickListener { toggleOnline() }
         }
+        val mainStateRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
         onlineSpin = TextView(this).apply {
             text = "⟳"
             gravity = Gravity.CENTER
-            textSize = 17f
+            textSize = 20f
             setTextColor(white)
         }
         onlineStatus = TextView(this).apply {
             gravity = Gravity.CENTER
-            textSize = 11f
+            textSize = 19f
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
         }
         onlineAction = TextView(this).apply {
             gravity = Gravity.CENTER
-            textSize = 15f
+            textSize = 12f
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
         }
-        onlinePanel.addView(onlineSpin, LinearLayout.LayoutParams(-1, dp(18)))
-        onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(26)))
-        onlinePanel.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(15)))
+        mainStateRow.addView(onlineStatus, LinearLayout.LayoutParams(-2, dp(29)))
+        mainStateRow.addView(onlineSpin, LinearLayout.LayoutParams(dp(27), dp(29)))
+        onlinePanel.addView(mainStateRow, LinearLayout.LayoutParams(-1, dp(29)))
+        onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(20)))
         mapFrame.addView(onlinePanel, FrameLayout.LayoutParams(
-            dp(260), dp(68), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            dp(260), dp(62), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
         ).apply {
             bottomMargin = dp(56)
         })
@@ -282,10 +287,11 @@ class MainActivity : ComponentActivity() {
     private fun refreshOnlineUi() {
         if (!::onlineStatus.isInitialized) return
         onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
-        onlineAction.text = if (online) "ხაზიდან გამოსვლა" else "ხაზზე გასვლა"
-        val actionColor = if (online) Color.rgb(145, 30, 48) else Color.rgb(28, 145, 91)
+        onlineAction.text = if (online) "ხაზიდან გადასვლა" else "ხაზზე გასვლა"
+        val actionColor = if (online) Color.rgb(28, 145, 91) else red
         onlineAction.setTextColor(white)
         onlineStatus.setTextColor(white)
+        onlineSpin.visibility = if (online) View.VISIBLE else View.GONE
         onlineSpin.setTextColor(white)
         onlinePanel.background = GradientDrawable().apply {
             setColor(actionColor)
