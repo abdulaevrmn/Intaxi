@@ -27,6 +27,7 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.modes.CameraMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
@@ -248,6 +249,7 @@ class MainActivity : ComponentActivity() {
                 LocationComponentActivationOptions.builder(this, m.style!!).build()
             )
             m.locationComponent.isLocationComponentEnabled = true
+            m.locationComponent.cameraMode = if (prefs.getBoolean("map_rotate", true)) CameraMode.TRACKING_GPS else CameraMode.TRACKING
         } catch (_: Exception) {
             notice("GPS", "GPS ვერ ჩაირთო. შეამოწმეთ ტელეფონის მდებარეობის პარამეტრები.")
         }
