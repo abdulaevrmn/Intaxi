@@ -167,9 +167,32 @@ class MainActivity : ComponentActivity() {
         val mapFrame = FrameLayout(this)
         (mapView.parent as? ViewGroup)?.removeView(mapView)
         mapFrame.addView(mapView, FrameLayout.LayoutParams(-1, -1))
-        val gpsButton = makeGpsButton()
-        mapFrame.addView(gpsButton, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER_VERTICAL or Gravity.END).apply {
-            marginEnd = dp(13)
+        val mapTools = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(3), dp(5), dp(3), dp(5))
+        }
+        mapTools.addView(makeGpsButton(), LinearLayout.LayoutParams(dp(52), dp(52)))
+        val tariffQuick = TextView(this).apply {
+            text = "ტარიფი"
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setTextColor(white)
+            setTypeface(null, Typeface.BOLD)
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(35, 35, 40))
+                cornerRadius = dp(12).toFloat()
+                setStroke(dp(1), red)
+            }
+            elevation = dp(7).toFloat()
+            setPadding(dp(4), 0, dp(4), 0)
+            setOnClickListener { showQuickTariffs() }
+        }
+        mapTools.addView(tariffQuick, LinearLayout.LayoutParams(dp(58), dp(42)).apply {
+            topMargin = dp(9)
+        })
+        mapFrame.addView(mapTools, FrameLayout.LayoutParams(dp(66), -2, Gravity.CENTER_VERTICAL or Gravity.END).apply {
+            marginEnd = dp(8)
         })
         page.addView(mapFrame, LinearLayout.LayoutParams(-1, 0, 1f))
 
@@ -258,14 +281,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun makeGpsButton(): View = TextView(this).apply {
-        text = "◎"
-        textSize = 29f
+        text = "⌖"
+        textSize = 34f
         gravity = Gravity.CENTER
         setTextColor(white)
         background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Color.rgb(35, 35, 40))
-            setStroke(dp(2), Color.rgb(220, 220, 225))
+            setColor(Color.rgb(29, 30, 35))
+            setStroke(dp(2), Color.rgb(100, 29, 45))
         }
         elevation = dp(7).toFloat()
         contentDescription = "ჩემი მდებარეობა"
@@ -284,6 +307,55 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun showQuickTariffs() {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(4))
+        }
+        box.addView(TextView(this).apply {
+            text = "რომელი ტარიფებით იმუშაოთ?"
+            textSize = 14f
+            setTextColor(white)
+            setPadding(0, 0, 0, dp(12))
+        })
+        val standard = android.widget.CheckBox(this).apply {
+            text = "სტანდარტი"
+            textSize = 15f
+            setTextColor(white)
+            buttonTintList = android.content.res.ColorStateList.valueOf(red)
+            isChecked = prefs.getBoolean("tariff_სტანდარტი", true)
+        }
+        val comfort = android.widget.CheckBox(this).apply {
+            text = "კომფორტი"
+            textSize = 15f
+            setTextColor(white)
+            buttonTintList = android.content.res.ColorStateList.valueOf(red)
+            isChecked = prefs.getBoolean("tariff_კომფორტი", true)
+        }
+        box.addView(standard)
+        box.addView(comfort)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("სწრაფი ტარიფები")
+            .setView(box)
+            .setNegativeButton("გაუქმება", null)
+            .setPositiveButton("შენახვა", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (!standard.isChecked && !comfort.isChecked) {
+                    notice("ტარიფები", "მინიმუმ ერთი ტარიფი ჩართული უნდა იყოს.")
+                    return@setOnClickListener
+                }
+                prefs.edit()
+                    .putBoolean("tariff_სტანდარტი", standard.isChecked)
+                    .putBoolean("tariff_კომფორტი", comfort.isChecked)
+                    .apply()
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     private fun hasGpsPermission(): Boolean =
@@ -352,7 +424,7 @@ class MainActivity : ComponentActivity() {
         p.addView(info("მძღოლის ანგარიში", "სახელი და გვარი\nარ არის მითითებული\n\nტელეფონი\nარ არის მითითებული"))
         p.addView(title("ტარიფები"))
         listOf("სტანდარტი", "კომფორტი").forEach {
-            switchRow(p, it, "ტარიფის ჩართვა / გამორთვა", "tariff_" + it, false, false)
+            switchRow(p, it, "ტარიფის ჩართვა / გამორთვა", "tariff_" + it, true, false)
         }
         p.addView(title("პარამეტრები"))
         p.addView(setting("აპლიკაციის პარამეტრები", "ენა, ნავიგაცია, რუკა, ხმები და სხვა") { settingsScreen() })
