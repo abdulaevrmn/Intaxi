@@ -10,6 +10,15 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.location.Location
+import android.location.LocationManager
+import android.speech.tts.TextToSpeech
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Locale
+import org.json.JSONObject
+import org.maplibre.android.annotations.Polyline
+import org.maplibre.android.annotations.PolylineOptions
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
@@ -55,6 +64,10 @@ class MainActivity : ComponentActivity() {
     private var period = "დღე"
     private var touchY = 0f
     private var balanceVisible = false
+    private var demoOrderActive = false
+    private var demoTripStarted = false
+    private var routeLine: Polyline? = null
+    private var tts: TextToSpeech? = null
 
     private val bg = Color.rgb(17, 17, 19)
     private val panel = Color.rgb(32, 32, 36)
@@ -71,6 +84,7 @@ class MainActivity : ComponentActivity() {
             if (grants.values.any { it }) enableGps()
             else notice("მდებარეობის ნებართვა", "რეალური GPS-ის გამოსაყენებლად İNTAXİ-ს მდებარეობის ნებართვა სჭირდება.")
         }
+        tts = TextToSpeech(this) { status -> if (status == TextToSpeech.SUCCESS) tts?.language = Locale("ka", "GE") }
         MapLibre.getInstance(this)
         mapView = MapView(this)
         mapView.onCreate(savedInstanceState)
@@ -364,9 +378,217 @@ class MainActivity : ComponentActivity() {
         ).apply {
             bottomMargin = dp(56)
         })
+        val demoOrder = Button(this).apply {
+            text = "სატესტო შეკვეთა"
+            isAllCaps = false
+            textSize = 12f
+            setTextColor(white)
+            background = rounded(red, 12)
+            visibility = View.GONE
+            setOnClickListener { showDemoOrderCard(mapFrame) }
+        }
+        mapFrame.addView(demoOrder, FrameLayout.LayoutParams(dp(190), dp(44), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            bottomMargin = dp(126)
+        })
+        onlinePanel.setOnClickListener {
+            toggleOnline()
+            demoOrder.visibility = if (online) View.VISIBLE else View.GONE
+        }
         page.addView(mapFrame, LinearLayout.LayoutParams(-1, -1))
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
         refreshOnlineUi()
+    }
+
+
+    private fun showDemoOrderCard(mapFrame: FrameLayout) {
+        if (demoOrderActive || demoTripStarted) return
+        demoOrderActive = true
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(14))
+            background = rounded(Color.rgb(24, 24, 28), 18)
+            elevation = dp(12).toFloat()
+        }
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        top.addView(TextView(this).apply {
+            text = "ახალი შეკვეთა  ·  სატესტო"
+            textSize = 16f; setTextColor(white); setTypeface(null, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        top.addView(TextView(this).apply {
+            text = "✕"; textSize = 22f; setTextColor(white); gravity = Gravity.CENTER
+            setOnClickListener { mapFrame.removeView(wrap); demoOrderActive = false }
+        }, LinearLayout.LayoutParams(dp(36), dp(36)))
+        wrap.addView(top)
+        val priceRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
+        priceRow.addView(TextView(this).apply {
+            text = "11.25 ₾   ·   ნაღდი"
+            textSize = 18f; setTextColor(Color.rgb(110, 225, 150)); setTypeface(null, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        priceRow.addView(TextView(this).apply {
+            text = "გიორგი  ★ 4.9"
+            textSize = 13f; setTextColor(white); gravity = Gravity.END
+        })
+        wrap.addView(priceRow)
+        wrap.addView(TextView(this).apply {
+            text = "●  აღების ადგილი: რუსთაველის გამზირი 12\n   1.2 კმ  ·  4 წთ\n\n◎  დანიშნულება: თავისუფლების მოედანი\n   8.5 კმ  ·  22 წთ"
+            textSize = 14f; setTextColor(white); setLineSpacing(dp(3).toFloat(), 1f)
+            setPadding(0, dp(5), 0, dp(12))
+        })
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; }
+        actions.addView(Button(this).apply {
+            text = "გამოტოვება"; isAllCaps = false; setTextColor(white); background = rounded(card, 10)
+            setOnClickListener { mapFrame.removeView(wrap); demoOrderActive = false }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(6) })
+        actions.addView(Button(this).apply {
+            text = "მიღება სტანდარტი"; isAllCaps = false; setTextColor(white); background = rounded(red, 10)
+            setOnClickListener {
+                mapFrame.removeView(wrap)
+                demoOrderActive = false
+                demoTripStarted = false
+                routeTo(41.7158, 44.7830, "მგზავრის აღების ადგილი")
+                showTripControls(mapFrame, false)
+            }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(6) })
+        wrap.addView(actions)
+        mapFrame.addView(wrap, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply {
+            setMargins(dp(10), dp(10), dp(10), 0)
+        })
+    }
+
+    private fun showTripControls(mapFrame: FrameLayout, passengerPicked: Boolean) {
+        mapFrame.findViewWithTag<View>("intaxi_trip_controls")?.let { mapFrame.removeView(it) }
+        val panelView = LinearLayout(this).apply {
+            tag = "intaxi_trip_controls"
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(12))
+            background = rounded(Color.rgb(24, 24, 28), 16)
+            elevation = dp(10).toFloat()
+        }
+        panelView.addView(TextView(this).apply {
+            text = if (passengerPicked) "მიმდინარეობს მგზავრობა · 8.5 კმ" else "მგზავრამდე · 1.2 კმ"
+            textSize = 15f; setTextColor(white); setTypeface(null, Typeface.BOLD)
+        })
+        panelView.addView(Button(this).apply {
+            text = if (passengerPicked) "სატესტო მგზავრობის დასრულება" else "სატესტო მგზავრი ავიყვანე"
+            isAllCaps = false; setTextColor(white); background = rounded(red, 10)
+            setOnClickListener {
+                if (!passengerPicked) {
+                    routeTo(41.7025, 44.8015, "დანიშნულების ადგილი")
+                    showTripControls(mapFrame, true)
+                } else {
+                    mapFrame.findViewWithTag<View>("intaxi_trip_controls")?.let { mapFrame.removeView(it) }
+                    showTripCompleted()
+                }
+            }
+        })
+        mapFrame.addView(panelView, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            setMargins(dp(10), 0, dp(10), dp(198))
+        })
+    }
+
+    private fun currentLocation(): Location? {
+        if (!hasGpsPermission()) return null
+        return try {
+            val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+            lm.getProviders(true).asSequence().mapNotNull { provider ->
+                try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
+            }.maxByOrNull { it.time }
+        } catch (_: Exception) { null }
+    }
+
+    private fun routeTo(destinationLat: Double, destinationLon: Double, label: String) {
+        val origin = currentLocation()
+        if (origin == null) {
+            notice("GPS", "მარშრუტისთვის ჯერ GPS მდებარეობა ვერ განისაზღვრა. ჩართეთ მდებარეობა და სცადეთ ხელახლა.")
+            return
+        }
+        val fromLat = origin.latitude
+        val fromLon = origin.longitude
+        Thread {
+            var message = "მარშრუტის გამოთვლა ვერ მოხერხდა."
+            var points = ArrayList<LatLng>()
+            try {
+                val url = URL("https://router.project-osrm.org/route/v1/driving/$fromLon,$fromLat;$destinationLon,$destinationLat?overview=full&geometries=geojson&steps=true")
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 12000; readTimeout = 15000; requestMethod = "GET"
+                }
+                val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                connection.disconnect()
+                val route = json.getJSONArray("routes").getJSONObject(0)
+                val coords = route.getJSONObject("geometry").getJSONArray("coordinates")
+                for (i in 0 until coords.length()) {
+                    val pair = coords.getJSONArray(i)
+                    points.add(LatLng(pair.getDouble(1), pair.getDouble(0)))
+                }
+                val km = route.getDouble("distance") / 1000.0
+                val mins = route.getDouble("duration") / 60.0
+                message = "$label · %.1f km · %.0f წთ".format(Locale.US, km, mins)
+            } catch (_: Exception) { }
+            runOnUiThread {
+                if (points.isNotEmpty()) {
+                    routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
+                    routeLine = map?.addPolyline(PolylineOptions().addAll(points).color(Color.rgb(190, 40, 65)).width(6f))
+                    val target = points.last()
+                    map?.animateCamera(org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(target, 14.5))
+                    tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "intaxi_route")
+                } else {
+                    notice("ნავიგაცია", message + "\nსატესტო მარშრუტი ინტერნეტს საჭიროებს.")
+                }
+            }
+        }.start()
+    }
+
+    private fun showTripCompleted() {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(12))
+            background = rounded(Color.rgb(25, 25, 29), 16)
+        }
+        box.addView(TextView(this).apply {
+            text = "მგზავრობა დასრულდა"
+            textSize = 19f; setTextColor(white); setTypeface(null, Typeface.BOLD); gravity = Gravity.CENTER
+        })
+        box.addView(TextView(this).apply {
+            text = "15.00 ₾"
+            textSize = 32f; setTextColor(white); setTypeface(null, Typeface.BOLD); gravity = Gravity.CENTER
+            setPadding(0, dp(12), 0, dp(8))
+        })
+        box.addView(TextView(this).apply {
+            text = "თქვენი შემოსავალი: 13.50 ₾\nგადახდა: ნაღდი"
+            textSize = 15f; setTextColor(Color.rgb(95, 220, 145)); gravity = Gravity.CENTER
+        })
+        AlertDialog.Builder(this).setView(box).setPositiveButton("მგზავრის შეფასება") { _, _ ->
+            showPassengerRating()
+        }.setOnCancelListener { resetDemoTrip() }.show()
+    }
+
+    private fun showPassengerRating() {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(10), dp(20), dp(4))
+        }
+        layout.addView(TextView(this).apply { text = "შეაფასეთ მგზავრი"; textSize = 18f; setTextColor(white) })
+        var rating = 5
+        val stars = TextView(this).apply {
+            text = "★ ★ ★ ★ ★"; textSize = 28f; setTextColor(Color.rgb(255, 190, 50)); gravity = Gravity.CENTER
+            setOnClickListener { rating = if (rating == 5) 4 else rating + 1; text = (1..5).joinToString(" ") { if (it <= rating) "★" else "☆" } }
+        }
+        layout.addView(stars)
+        val comment = android.widget.EditText(this).apply {
+            hint = "კომენტარი (არასავალდებულო)"
+            setTextColor(white); setHintTextColor(muted); setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        layout.addView(comment)
+        AlertDialog.Builder(this).setView(layout).setPositiveButton("შეფასების შენახვა") { _, _ ->
+            resetDemoTrip()
+        }.setNegativeButton("გამოტოვება") { _, _ -> resetDemoTrip() }.show()
+    }
+
+    private fun resetDemoTrip() {
+        routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
+        routeLine = null
+        demoTripStarted = false
+        tts?.stop()
     }
 
     private fun makeRadar(): LinearLayout = LinearLayout(this).apply {
@@ -809,5 +1031,5 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState); mapView.onSaveInstanceState(outState)
     }
-    override fun onDestroy() { mapView.onDestroy(); super.onDestroy() }
+    override fun onDestroy() { tts?.stop(); tts?.shutdown(); mapView.onDestroy(); super.onDestroy() }
 }
