@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(dp(12), dp(30), dp(12), dp(5))
-            setBackgroundColor(Color.argb(210, 32, 32, 36))
+            setBackgroundColor(Color.argb(128, 32, 32, 36))
         }
         val balanceInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -148,7 +148,7 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(0, dp(1), 0, dp(20))
-            setBackgroundColor(Color.argb(179, 32, 32, 36))
+            setBackgroundColor(Color.argb(77, 32, 32, 36))
         }
         root.addView(navBar, LinearLayout.LayoutParams(-1, dp(78)))
         navBar.translationY = -dp(39).toFloat()
