@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
         toggle.background = outlinedButton(panel, red, 16)
         toggle.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(43)))
         toggle.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(19)))
-        onlinePanel.addView(toggle, LinearLayout.LayoutParams(-1, dp(70))
+        onlinePanel.addView(toggle, LinearLayout.LayoutParams(-1, dp(70)))
         page.addView(onlinePanel)
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
         refreshOnlineUi()
