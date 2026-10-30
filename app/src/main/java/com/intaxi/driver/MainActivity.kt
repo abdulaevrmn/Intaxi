@@ -1,6 +1,5 @@
 package com.intaxi.driver
 
-import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -8,7 +7,6 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -23,7 +21,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var mapView: MapView
     private lateinit var contentContainer: FrameLayout
     private lateinit var statusText: TextView
-    private lateinit var onlineButton: Button
+    private lateinit var onlineButton: LinearLayout
+    private lateinit var onlineStatusText: TextView
+    private lateinit var onlineActionText: TextView
     private lateinit var navBar: LinearLayout
 
     private var isOnline = false
@@ -44,10 +44,7 @@ class MainActivity : ComponentActivity() {
         mapView.onCreate(savedInstanceState)
 
         mapView.getMapAsync { map ->
-            map.setStyle(
-                "https://tiles.openfreemap.org/styles/liberty"
-            )
-
+            map.setStyle("https://tiles.openfreemap.org/styles/liberty")
             map.cameraPosition = CameraPosition.Builder()
                 .target(LatLng(41.7151, 44.8271))
                 .zoom(12.0)
@@ -59,41 +56,38 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun buildMainScreen() {
-        val root = LinearLayout(this)
-        root.orientation = LinearLayout.VERTICAL
-        root.setBackgroundColor(backgroundColor)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(backgroundColor)
+        }
 
-        val header = LinearLayout(this)
-        header.orientation = LinearLayout.HORIZONTAL
-        header.gravity = Gravity.CENTER_VERTICAL
-        header.setPadding(dp(18), dp(10), dp(18), dp(10))
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(18), dp(10), dp(18), dp(10))
+        }
 
-        val brand = TextView(this)
-        brand.text = "İNTAXİ\nმძღოლის აპლიკაცია"
-        brand.setTextColor(Color.WHITE)
-        brand.textSize = 17f
-        brand.setTypeface(null, Typeface.BOLD)
+        val brand = TextView(this).apply {
+            text = "İNTAXİ\nმძღოლის აპლიკაცია"
+            setTextColor(Color.WHITE)
+            textSize = 17f
+            setTypeface(null, Typeface.BOLD)
+        }
 
-        header.addView(
-            brand,
-            LinearLayout.LayoutParams(0, dp(55), 1f)
-        )
+        header.addView(brand, LinearLayout.LayoutParams(0, dp(55), 1f))
 
-        statusText = TextView(this)
-        statusText.textSize = 14f
-        statusText.setTypeface(null, Typeface.BOLD)
+        statusText = TextView(this).apply {
+            textSize = 14f
+            setTypeface(null, Typeface.BOLD)
+        }
         header.addView(statusText)
 
         root.addView(
             header,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(75)
-            )
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(75))
         )
 
         contentContainer = FrameLayout(this)
-
         root.addView(
             contentContainer,
             LinearLayout.LayoutParams(
@@ -103,17 +97,16 @@ class MainActivity : ComponentActivity() {
             )
         )
 
-        navBar = LinearLayout(this)
-        navBar.orientation = LinearLayout.HORIZONTAL
-        navBar.gravity = Gravity.CENTER
-        navBar.setBackgroundColor(panelColor)
+        navBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(4), 0, dp(4))
+            setBackgroundColor(panelColor)
+        }
 
         root.addView(
             navBar,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(65)
-            )
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76))
         )
 
         setContentView(root)
@@ -135,9 +128,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showOrdersScreen() {
-        val page = LinearLayout(this)
-        page.orientation = LinearLayout.VERTICAL
-        page.setPadding(dp(10), dp(5), dp(10), dp(8))
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(5), dp(10), dp(8))
+        }
 
         val oldParent = mapView.parent
         if (oldParent is ViewGroup) {
@@ -153,43 +147,77 @@ class MainActivity : ComponentActivity() {
             )
         )
 
-        val infoPanel = LinearLayout(this)
-        infoPanel.orientation = LinearLayout.VERTICAL
-        infoPanel.setPadding(dp(16), dp(12), dp(16), dp(12))
-        infoPanel.background = roundedBackground(panelColor, 18)
+        val infoPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            background = roundedBackground(panelColor, 18)
+        }
 
-        val incomeTitle = TextView(this)
-        incomeTitle.text = "დღევანდელი შემოსავალი"
-        incomeTitle.textSize = 13f
-        incomeTitle.setTextColor(mutedColor)
+        val incomeTitle = TextView(this).apply {
+            text = "დღევანდელი შემოსავალი"
+            textSize = 13f
+            setTextColor(mutedColor)
+        }
 
-        val incomeValue = TextView(this)
-        incomeValue.text = "0.00 ₾"
-        incomeValue.textSize = 25f
-        incomeValue.setTextColor(Color.WHITE)
-        incomeValue.setTypeface(null, Typeface.BOLD)
+        val incomeValue = TextView(this).apply {
+            text = "0.00 ₾"
+            textSize = 25f
+            setTextColor(Color.WHITE)
+            setTypeface(null, Typeface.BOLD)
+        }
 
         infoPanel.addView(incomeTitle)
         infoPanel.addView(incomeValue)
 
-        onlineButton = Button(this)
-        onlineButton.textSize = 15f
-        onlineButton.setTextColor(Color.WHITE)
-        onlineButton.setTypeface(null, Typeface.BOLD)
-        onlineButton.backgroundTintList =
-            ColorStateList.valueOf(burgundyColor)
-
-        onlineButton.setOnClickListener {
-            isOnline = !isOnline
-            updateStatus()
+        onlineButton = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(7), dp(12), dp(7))
+            background = roundedBackground(burgundyColor, 16)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                isOnline = !isOnline
+                updateStatus()
+            }
         }
+
+        onlineStatusText = TextView(this).apply {
+            gravity = Gravity.CENTER
+            textSize = 12f
+            setTextColor(Color.WHITE)
+        }
+
+        onlineActionText = TextView(this).apply {
+            gravity = Gravity.CENTER
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            setTypeface(null, Typeface.BOLD)
+        }
+
+        onlineButton.addView(
+            onlineStatusText,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+        onlineButton.addView(
+            onlineActionText,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         infoPanel.addView(
             onlineButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(52)
-            )
+                dp(66)
+            ).apply {
+                topMargin = dp(10)
+            }
         )
 
         page.addView(
@@ -200,7 +228,6 @@ class MainActivity : ComponentActivity() {
             )
         )
 
-        val mapLayoutParams = page.layoutParams
         contentContainer.addView(
             page,
             FrameLayout.LayoutParams(
@@ -224,20 +251,17 @@ class MainActivity : ComponentActivity() {
         }
 
         if (::onlineButton.isInitialized) {
-            onlineButton.text = if (isOnline) {
+            onlineStatusText.text = if (isOnline) "ონლაინ" else "ოფლაინ"
+            onlineActionText.text = if (isOnline) {
                 "ოფლაინზე გადასვლა"
             } else {
-                "ონლაინში ჩართვა"
+                "ონლაინში გადასვლა"
             }
 
-            onlineButton.backgroundTintList =
-                ColorStateList.valueOf(
-                    if (isOnline) {
-                        Color.rgb(53, 53, 59)
-                    } else {
-                        burgundyColor
-                    }
-                )
+            onlineButton.background = roundedBackground(
+                if (isOnline) Color.rgb(53, 53, 59) else burgundyColor,
+                16
+            )
         }
     }
 
@@ -245,46 +269,67 @@ class MainActivity : ComponentActivity() {
         navBar.removeAllViews()
 
         val tabs = listOf(
-            "შეკვეთები",
-            "ჩატები",
-            "ფინანსები",
-            "პროფილი"
+            Triple("შეკვეთები", "⌖", "შეკვეთები"),
+            Triple("ჩატები", "▤", "ჩატები"),
+            Triple("ფინანსები", "₾", "ფინანსები"),
+            Triple("პროფილი", "●", "პროფილი")
         )
 
-        for (tab in tabs) {
-            val item = TextView(this)
-            item.text = tab
-            item.gravity = Gravity.CENTER
-            item.textSize = 12f
-            item.setTextColor(
-                if (selectedTab == tab) {
-                    Color.WHITE
-                } else {
-                    mutedColor
-                }
+        for ((tab, symbol, label) in tabs) {
+            val selected = selectedTab == tab
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                isClickable = true
+                isFocusable = true
+                setPadding(dp(2), dp(2), dp(2), dp(2))
+                setOnClickListener { showTab(tab) }
+            }
+
+            val icon = TextView(this).apply {
+                text = symbol
+                gravity = Gravity.CENTER
+                textSize = 20f
+                setTextColor(if (selected) Color.WHITE else mutedColor)
+            }
+
+            val title = TextView(this).apply {
+                text = label
+                gravity = Gravity.CENTER
+                textSize = 11f
+                setTextColor(if (selected) Color.WHITE else mutedColor)
+                if (selected) setTypeface(null, Typeface.BOLD)
+            }
+
+            item.addView(
+                icon,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(27)
+                )
             )
-
-            if (selectedTab == tab) {
-                item.setTypeface(null, Typeface.BOLD)
-            }
-
-            item.setOnClickListener {
-                showTab(tab)
-            }
+            item.addView(
+                title,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
 
             navBar.addView(
                 item,
-                LinearLayout.LayoutParams(0, dp(65), 1f)
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
             )
         }
     }
 
     private fun showPlaceholder(tab: String) {
-        val message = TextView(this)
-        message.text = "$tab\n\nეს განყოფილება მზადების პროცესშია"
-        message.gravity = Gravity.CENTER
-        message.textSize = 18f
-        message.setTextColor(Color.WHITE)
+        val message = TextView(this).apply {
+            text = "$tab\n\nეს განყოფილება მზადების პროცესშია"
+            gravity = Gravity.CENTER
+            textSize = 18f
+            setTextColor(Color.WHITE)
+        }
 
         contentContainer.addView(
             message,
@@ -295,10 +340,7 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private fun roundedBackground(
-        color: Int,
-        radius: Int
-    ): GradientDrawable {
+    private fun roundedBackground(color: Int, radius: Int): GradientDrawable {
         return GradientDrawable().apply {
             setColor(color)
             cornerRadius = dp(radius).toFloat()
