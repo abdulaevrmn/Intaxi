@@ -176,21 +176,21 @@ class MainActivity : ComponentActivity() {
         }
         mapTools.addView(makeGpsButton(), LinearLayout.LayoutParams(dp(52), dp(52)))
         val tariffQuick = TextView(this).apply {
-            text = "ტარიფი"
-            textSize = 11f
+            text = "₾"
+            textSize = 25f
             gravity = Gravity.CENTER
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
             background = GradientDrawable().apply {
-                setColor(Color.rgb(35, 35, 40))
-                cornerRadius = dp(12).toFloat()
-                setStroke(dp(1), red)
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(29, 30, 35))
+                setStroke(dp(2), red)
             }
             elevation = dp(7).toFloat()
-            setPadding(dp(4), 0, dp(4), 0)
+            contentDescription = "ტარიფები"
             setOnClickListener { showQuickTariffs() }
         }
-        mapTools.addView(tariffQuick, LinearLayout.LayoutParams(dp(58), dp(42)).apply {
+        mapTools.addView(tariffQuick, LinearLayout.LayoutParams(dp(52), dp(52)).apply {
             topMargin = dp(9)
         })
         mapFrame.addView(mapTools, FrameLayout.LayoutParams(dp(66), -2, Gravity.CENTER_VERTICAL or Gravity.END).apply {
@@ -279,10 +279,13 @@ class MainActivity : ComponentActivity() {
         if (!::onlineStatus.isInitialized) return
         onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
         onlineAction.text = if (online) "ხაზიდან გამოსვლა" else "ხაზზე გასვლა"
+        val actionColor = if (online) Color.rgb(190, 55, 65) else Color.rgb(28, 145, 91)
+        onlineAction.setTextColor(actionColor)
+        onlineStatus.setTextColor(actionColor)
         onlinePanel.background = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
             cornerRadius = dp(22).toFloat()
-            setStroke(dp(2), red)
+            setStroke(dp(2), actionColor)
         }
         if (::navBar.isInitialized) navBar.visibility = View.VISIBLE
     }
@@ -319,14 +322,17 @@ class MainActivity : ComponentActivity() {
     private fun showQuickTariffs() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(8), dp(18), dp(4))
+            setPadding(dp(18), dp(12), dp(18), dp(8))
+            setBackgroundColor(bg)
         }
-        box.addView(TextView(this).apply {
+        val dialogTitle = TextView(this).apply {
             text = "რომელი ტარიფებით იმუშაოთ?"
-            textSize = 14f
+            textSize = 15f
             setTextColor(white)
+            setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, dp(12))
-        })
+        }
+        box.addView(dialogTitle)
         val standard = android.widget.CheckBox(this).apply {
             text = "სტანდარტი"
             textSize = 15f
@@ -344,12 +350,14 @@ class MainActivity : ComponentActivity() {
         box.addView(standard)
         box.addView(comfort)
         val dialog = AlertDialog.Builder(this)
-            .setTitle("სწრაფი ტარიფები")
             .setView(box)
             .setNegativeButton("გაუქმება", null)
             .setPositiveButton("შენახვა", null)
             .create()
         dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(rounded(bg, 18))
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.rgb(95, 220, 145))
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(white)
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 if (!standard.isChecked && !comfort.isChecked) {
                     notice("ტარიფები", "მინიმუმ ერთი ტარიფი ჩართული უნდა იყოს.")
