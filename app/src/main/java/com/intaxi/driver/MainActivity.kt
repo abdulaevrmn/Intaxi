@@ -43,6 +43,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var onlinePanel: LinearLayout
     private lateinit var onlineStatus: TextView
     private lateinit var onlineAction: TextView
+    private lateinit var onlineSpin: TextView
+    private var onlineSpinnerAnimator: ObjectAnimator? = null
     private lateinit var prefs: SharedPreferences
     private lateinit var gpsPermissionLauncher: ActivityResultLauncher<Array<String>>
     private var map: MapLibreMap? = null
@@ -97,7 +99,7 @@ class MainActivity : ComponentActivity() {
         val balanceHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(5), dp(12), dp(5))
+            setPadding(dp(12), dp(30), dp(12), dp(5))
             setBackgroundColor(bg)
         }
         val balanceInfo = LinearLayout(this).apply {
@@ -176,8 +178,8 @@ class MainActivity : ComponentActivity() {
         }
         mapTools.addView(makeGpsButton(), LinearLayout.LayoutParams(dp(52), dp(52)))
         val tariffQuick = TextView(this).apply {
-            text = "₾"
-            textSize = 25f
+            text = "☷"
+            textSize = 30f
             gravity = Gravity.CENTER
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
@@ -199,20 +201,21 @@ class MainActivity : ComponentActivity() {
         onlinePanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            background = GradientDrawable().apply {
-                setColor(Color.TRANSPARENT)
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(2), red)
-            }
-            elevation = dp(5).toFloat()
+            setPadding(dp(10), dp(3), dp(10), dp(3))
+            elevation = dp(6).toFloat()
             isClickable = true
             setOnClickListener { toggleOnline() }
+        }
+        onlineSpin = TextView(this).apply {
+            text = "⟳"
+            gravity = Gravity.CENTER
+            textSize = 17f
+            setTextColor(white)
         }
         onlineStatus = TextView(this).apply {
             gravity = Gravity.CENTER
             textSize = 11f
-            setTextColor(muted)
+            setTextColor(white)
             setTypeface(null, Typeface.BOLD)
         }
         onlineAction = TextView(this).apply {
@@ -221,12 +224,13 @@ class MainActivity : ComponentActivity() {
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
         }
-        onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(32)))
-        onlinePanel.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(17)))
+        onlinePanel.addView(onlineSpin, LinearLayout.LayoutParams(-1, dp(18)))
+        onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(26)))
+        onlinePanel.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(15)))
         mapFrame.addView(onlinePanel, FrameLayout.LayoutParams(
-            dp(260), dp(62), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            dp(260), dp(68), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
         ).apply {
-            bottomMargin = dp(18)
+            bottomMargin = dp(56)
         })
         page.addView(mapFrame, LinearLayout.LayoutParams(-1, -1))
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
@@ -279,13 +283,25 @@ class MainActivity : ComponentActivity() {
         if (!::onlineStatus.isInitialized) return
         onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
         onlineAction.text = if (online) "ხაზიდან გამოსვლა" else "ხაზზე გასვლა"
-        val actionColor = if (online) Color.rgb(190, 55, 65) else Color.rgb(28, 145, 91)
-        onlineAction.setTextColor(actionColor)
-        onlineStatus.setTextColor(actionColor)
+        val actionColor = if (online) Color.rgb(145, 30, 48) else Color.rgb(28, 145, 91)
+        onlineAction.setTextColor(white)
+        onlineStatus.setTextColor(white)
+        onlineSpin.setTextColor(white)
         onlinePanel.background = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
+            setColor(actionColor)
             cornerRadius = dp(22).toFloat()
-            setStroke(dp(2), actionColor)
+            setStroke(dp(1), actionColor)
+        }
+        onlineSpinnerAnimator?.cancel()
+        onlineSpin.rotation = 0f
+        if (online) {
+            onlineSpinnerAnimator = ObjectAnimator.ofFloat(onlineSpin, "rotation", 0f, 360f).apply {
+                duration = 1100
+                repeatCount = ObjectAnimator.INFINITE
+                repeatMode = ObjectAnimator.RESTART
+                interpolator = LinearInterpolator()
+                start()
+            }
         }
         if (::navBar.isInitialized) navBar.visibility = View.VISIBLE
     }
