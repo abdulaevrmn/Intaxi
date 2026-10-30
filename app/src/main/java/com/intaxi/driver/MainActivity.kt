@@ -1,5 +1,6 @@
 package com.intaxi.driver
 
+import android.animation.ObjectAnimator
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -7,6 +8,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -20,11 +22,12 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var mapView: MapView
     private lateinit var contentContainer: FrameLayout
-    private lateinit var statusText: TextView
     private lateinit var onlineButton: LinearLayout
     private lateinit var onlineStatusText: TextView
     private lateinit var onlineActionText: TextView
+    private lateinit var loadingSpinner: TextView
     private lateinit var navBar: LinearLayout
+    private var spinnerAnimator: ObjectAnimator? = null
 
     private var isOnline = false
     private var selectedTab = "შეკვეთები"
@@ -33,16 +36,14 @@ class MainActivity : ComponentActivity() {
     private val panelColor = Color.rgb(32, 32, 36)
     private val burgundyColor = Color.rgb(100, 29, 45)
     private val mutedColor = Color.rgb(170, 170, 175)
-    private val greenColor = Color.rgb(57, 184, 120)
+    private val greenColor = Color.rgb(28, 145, 91)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         MapLibre.getInstance(this)
 
         mapView = MapView(this)
         mapView.onCreate(savedInstanceState)
-
         mapView.getMapAsync { map ->
             map.setStyle("https://tiles.openfreemap.org/styles/liberty")
             map.cameraPosition = CameraPosition.Builder()
@@ -64,7 +65,7 @@ class MainActivity : ComponentActivity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(18), dp(10), dp(18), dp(10))
+            setPadding(dp(18), dp(8), dp(18), dp(8))
         }
 
         val brand = TextView(this).apply {
@@ -73,155 +74,159 @@ class MainActivity : ComponentActivity() {
             textSize = 17f
             setTypeface(null, Typeface.BOLD)
         }
-
         header.addView(brand, LinearLayout.LayoutParams(0, dp(55), 1f))
-
-        statusText = TextView(this).apply {
-            textSize = 14f
-            setTypeface(null, Typeface.BOLD)
-        }
-        header.addView(statusText)
-
         root.addView(
             header,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(75))
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(68))
         )
 
         contentContainer = FrameLayout(this)
         root.addView(
             contentContainer,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
         )
 
         navBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(4), 0, dp(4))
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            setPadding(0, dp(2), 0, dp(36))
             setBackgroundColor(panelColor)
         }
-
         root.addView(
             navBar,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76))
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88))
         )
 
         setContentView(root)
-        updateStatus()
         buildNavigation()
     }
 
     private fun showTab(tab: String) {
         selectedTab = tab
         contentContainer.removeAllViews()
-
         if (tab == "შეკვეთები") {
             showOrdersScreen()
         } else {
             showPlaceholder(tab)
         }
-
         buildNavigation()
     }
 
     private fun showOrdersScreen() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), dp(5), dp(10), dp(8))
+            setPadding(dp(10), dp(4), dp(10), dp(8))
         }
 
-        val oldParent = mapView.parent
-        if (oldParent is ViewGroup) {
-            oldParent.removeView(mapView)
-        }
-
+        (mapView.parent as? ViewGroup)?.removeView(mapView)
         page.addView(
             mapView,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
         )
 
-        val infoPanel = LinearLayout(this).apply {
+        val controlPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
             background = roundedBackground(panelColor, 18)
         }
 
-        val incomeTitle = TextView(this).apply {
-            text = "დღევანდელი შემოსავალი"
-            textSize = 13f
-            setTextColor(mutedColor)
+        // Daily income and completed orders are displayed side by side.
+        val statsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
 
-        val incomeValue = TextView(this).apply {
-            text = "0.00 ₾"
-            textSize = 25f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-        }
+        statsRow.addView(
+            createStatCard("დღის შემოსავალი", "0.00 ₾"),
+            LinearLayout.LayoutParams(0, dp(58), 1f)
+        )
 
-        infoPanel.addView(incomeTitle)
-        infoPanel.addView(incomeValue)
+        val statGap = View(this)
+        statsRow.addView(statGap, LinearLayout.LayoutParams(dp(8), 1))
+
+        statsRow.addView(
+            createStatCard("შესრულებული შეკვეთები", "0"),
+            LinearLayout.LayoutParams(0, dp(58), 1f)
+        )
+
+        controlPanel.addView(
+            statsRow,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58))
+        )
 
         onlineButton = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(dp(12), dp(7), dp(12), dp(7))
-            background = roundedBackground(burgundyColor, 16)
             isClickable = true
             isFocusable = true
-            setOnClickListener {
-                isOnline = !isOnline
-                updateStatus()
-            }
+            setOnClickListener { toggleOnline() }
+        }
+
+        val searchRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+
+        loadingSpinner = TextView(this).apply {
+            text = "⟳"
+            textSize = 23f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            visibility = View.GONE
         }
 
         onlineStatusText = TextView(this).apply {
             gravity = Gravity.CENTER
-            textSize = 12f
+            textSize = 15f
             setTextColor(Color.WHITE)
+            setTypeface(null, Typeface.BOLD)
         }
+
+        searchRow.addView(
+            loadingSpinner,
+            LinearLayout.LayoutParams(dp(30), dp(30))
+        )
+        searchRow.addView(
+            onlineStatusText,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(30)
+            )
+        )
 
         onlineActionText = TextView(this).apply {
             gravity = Gravity.CENTER
-            textSize = 16f
+            textSize = 15f
             setTextColor(Color.WHITE)
             setTypeface(null, Typeface.BOLD)
         }
 
         onlineButton.addView(
-            onlineStatusText,
+            searchRow,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(30)
             )
         )
         onlineButton.addView(
             onlineActionText,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(27)
             )
         )
 
-        infoPanel.addView(
+        controlPanel.addView(
             onlineButton,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(66)
-            ).apply {
-                topMargin = dp(10)
-            }
+                dp(68)
+            ).apply { topMargin = dp(9) }
         )
 
         page.addView(
-            infoPanel,
+            controlPanel,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -235,39 +240,67 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
-
-        updateStatus()
+        updateOnlineButton()
     }
 
-    private fun updateStatus() {
-        if (!::statusText.isInitialized) return
+    private fun createStatCard(title: String, value: String): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(4), dp(6), dp(4))
+            background = roundedBackground(Color.rgb(42, 42, 47), 12)
+
+            addView(TextView(this@MainActivity).apply {
+                text = title
+                textSize = 11f
+                setTextColor(mutedColor)
+                maxLines = 1
+            })
+
+            addView(TextView(this@MainActivity).apply {
+                text = value
+                textSize = 19f
+                setTextColor(Color.WHITE)
+                setTypeface(null, Typeface.BOLD)
+            })
+        }
+    }
+
+    private fun toggleOnline() {
+        isOnline = !isOnline
+        updateOnlineButton()
+    }
+
+    private fun updateOnlineButton() {
+        if (!::onlineButton.isInitialized) return
 
         if (isOnline) {
-            statusText.text = "● ონლაინ"
-            statusText.setTextColor(greenColor)
-        } else {
-            statusText.text = "● ოფლაინ"
-            statusText.setTextColor(mutedColor)
-        }
+            onlineButton.background = roundedBackground(greenColor, 16)
+            onlineStatusText.text = "შეკვეთებს ვეძებთ..."
+            onlineActionText.text = "ოფლაინზე გადასვლა"
+            loadingSpinner.visibility = View.VISIBLE
 
-        if (::onlineButton.isInitialized) {
-            onlineStatusText.text = if (isOnline) "ონლაინ" else "ოფლაინ"
-            onlineActionText.text = if (isOnline) {
-                "ოფლაინზე გადასვლა"
-            } else {
-                "ონლაინში გადასვლა"
+            spinnerAnimator?.cancel()
+            spinnerAnimator = ObjectAnimator.ofFloat(
+                loadingSpinner, View.ROTATION, 0f, 360f
+            ).apply {
+                duration = 900
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                start()
             }
-
-            onlineButton.background = roundedBackground(
-                if (isOnline) Color.rgb(53, 53, 59) else burgundyColor,
-                16
-            )
+        } else {
+            spinnerAnimator?.cancel()
+            loadingSpinner.rotation = 0f
+            loadingSpinner.visibility = View.GONE
+            onlineButton.background = roundedBackground(burgundyColor, 16)
+            onlineStatusText.text = "ოფლაინ"
+            onlineActionText.text = "ონლაინში გადასვლა"
         }
     }
 
     private fun buildNavigation() {
         navBar.removeAllViews()
-
         val tabs = listOf(
             Triple("შეკვეთები", "⌖", "შეკვეთები"),
             Triple("ჩატები", "▤", "ჩატები"),
@@ -282,39 +315,29 @@ class MainActivity : ComponentActivity() {
                 gravity = Gravity.CENTER
                 isClickable = true
                 isFocusable = true
-                setPadding(dp(2), dp(2), dp(2), dp(2))
+                setPadding(dp(2), 0, dp(2), 0)
                 setOnClickListener { showTab(tab) }
             }
 
-            val icon = TextView(this).apply {
+            item.addView(TextView(this).apply {
                 text = symbol
                 gravity = Gravity.CENTER
                 textSize = 20f
                 setTextColor(if (selected) Color.WHITE else mutedColor)
-            }
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(27)
+            ))
 
-            val title = TextView(this).apply {
+            item.addView(TextView(this).apply {
                 text = label
                 gravity = Gravity.CENTER
                 textSize = 11f
                 setTextColor(if (selected) Color.WHITE else mutedColor)
                 if (selected) setTypeface(null, Typeface.BOLD)
-            }
-
-            item.addView(
-                icon,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(27)
-                )
-            )
-            item.addView(
-                title,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
 
             navBar.addView(
                 item,
@@ -330,7 +353,6 @@ class MainActivity : ComponentActivity() {
             textSize = 18f
             setTextColor(Color.WHITE)
         }
-
         contentContainer.addView(
             message,
             FrameLayout.LayoutParams(
@@ -347,9 +369,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun dp(value: Int): Int {
-        return (value * resources.displayMetrics.density).toInt()
-    }
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     override fun onStart() {
         super.onStart()
@@ -382,6 +403,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        spinnerAnimator?.cancel()
         mapView.onDestroy()
         super.onDestroy()
     }
