@@ -20,6 +20,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -37,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var onlineStatus: TextView
     private lateinit var onlineAction: TextView
     private lateinit var prefs: SharedPreferences
+    private lateinit var gpsPermissionLauncher: ActivityResultLauncher<Array<String>>
     private var map: MapLibreMap? = null
     private var mapReady = false
     private var online = false
@@ -52,11 +55,14 @@ class MainActivity : ComponentActivity() {
     private val green = Color.rgb(28, 145, 91)
     private val muted = Color.rgb(170, 170, 175)
     private val white = Color.WHITE
-    private val gpsRequest = 4102
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences("intaxi_settings", MODE_PRIVATE)
+        gpsPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+            if (grants.values.any { it }) enableGps()
+            else notice("მდებარეობის ნებართვა", "რეალური GPS-ის გამოსაყენებლად İNTAXİ-ს მდებარეობის ნებართვა სჭირდება.")
+        }
         MapLibre.getInstance(this)
         mapView = MapView(this)
         mapView.onCreate(savedInstanceState)
@@ -73,9 +79,7 @@ class MainActivity : ComponentActivity() {
         buildShell()
         showTab("შეკვეთები")
         if (!hasGpsPermission()) {
-            ActivityCompat.requestPermissions(this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                gpsRequest)
+            gpsPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
     }
 
@@ -247,11 +251,6 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             notice("GPS", "GPS ვერ ჩაირთო. შეამოწმეთ ტელეფონის მდებარეობის პარამეტრები.")
         }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, results)
-        if (requestCode == gpsRequest && results.any { it == PackageManager.PERMISSION_GRANTED }) enableGps()
     }
 
     private fun applyMapSettings() {
