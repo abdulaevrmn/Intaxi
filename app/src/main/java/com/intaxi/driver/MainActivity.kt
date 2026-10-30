@@ -196,38 +196,39 @@ class MainActivity : ComponentActivity() {
         mapFrame.addView(mapTools, FrameLayout.LayoutParams(dp(66), -2, Gravity.CENTER_VERTICAL or Gravity.END).apply {
             marginEnd = dp(8)
         })
-        page.addView(mapFrame, LinearLayout.LayoutParams(-1, 0, 1f))
-
         onlinePanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(9), dp(12), dp(9))
             gravity = Gravity.CENTER
-            background = rounded(bg, 17)
-            visibility = View.VISIBLE
-            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            background = GradientDrawable().apply {
+                setColor(Color.TRANSPARENT)
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(2), red)
+            }
+            elevation = dp(5).toFloat()
+            isClickable = true
+            setOnClickListener { toggleOnline() }
         }
         onlineStatus = TextView(this).apply {
             gravity = Gravity.CENTER
-            textSize = 14f
-            setTextColor(white)
+            textSize = 11f
+            setTextColor(muted)
             setTypeface(null, Typeface.BOLD)
         }
         onlineAction = TextView(this).apply {
             gravity = Gravity.CENTER
-            textSize = 14f
+            textSize = 15f
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
         }
-        val toggle = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setOnClickListener { toggleOnline() }
-        }
-        toggle.background = outlinedButton(panel, red, 16)
-        toggle.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(43)))
-        toggle.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(19)))
-        onlinePanel.addView(toggle, LinearLayout.LayoutParams(-1, dp(70)))
-        page.addView(onlinePanel)
+        onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(32)))
+        onlinePanel.addView(onlineStatus, LinearLayout.LayoutParams(-1, dp(17)))
+        mapFrame.addView(onlinePanel, FrameLayout.LayoutParams(
+            dp(260), dp(62), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        ).apply {
+            bottomMargin = dp(18)
+        })
+        page.addView(mapFrame, LinearLayout.LayoutParams(-1, -1))
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
         refreshOnlineUi()
     }
@@ -277,8 +278,12 @@ class MainActivity : ComponentActivity() {
     private fun refreshOnlineUi() {
         if (!::onlineStatus.isInitialized) return
         onlineStatus.text = if (online) "ონლაინ" else "ოფლაინ"
-        onlineAction.text = if (online) "⟳   ოფლაინზე გადასვლა" else "ონლაინში გადასვლა"
-        onlinePanel.background = rounded(bg, 16)
+        onlineAction.text = if (online) "ხაზიდან გამოსვლა" else "ხაზზე გასვლა"
+        onlinePanel.background = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = dp(22).toFloat()
+            setStroke(dp(2), red)
+        }
         if (::navBar.isInitialized) navBar.visibility = View.VISIBLE
     }
 
