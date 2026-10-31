@@ -494,11 +494,12 @@ class MainActivity : ComponentActivity() {
         if (cursor < routeMeters) intervals.add(FareInterval(cursor, routeMeters, inside))
 
         // The base fare includes the first kilometre once; subsequent distance is split by tariff area.
+        val distanceScale = (totalKm * 1000.0) / routeMeters
         var freeMetersLeft = 1000.0
         var cityChargeKm = 0.0
         var outsideChargeKm = 0.0
         for (interval in intervals) {
-            var length = interval.endMeters - interval.startMeters
+            var length = (interval.endMeters - interval.startMeters) * distanceScale
             val freePart = kotlin.math.min(length, freeMetersLeft)
             length -= freePart
             freeMetersLeft -= freePart
