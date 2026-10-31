@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
         textSize = 14f
         setTextColor(white)
         setHintTextColor(muted)
-        singleLine = true
+        isSingleLine = true
         setPadding(dp(13), 0, dp(13), 0)
         background = rounded(Color.rgb(45, 45, 51), 11)
     }
