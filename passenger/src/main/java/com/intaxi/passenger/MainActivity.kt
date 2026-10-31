@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
     private var map: MapLibreMap? = null
     private var routeLine: Polyline? = null
     private var routeRequestId = 0
+    private var routeReady = false
     private var selectedTariff = "სტანდარტი"
     private var pickupPoint: LatLng? = null
     private var destinationPoint: LatLng? = null
@@ -354,6 +355,7 @@ class MainActivity : ComponentActivity() {
 
     private fun clearRoute(message: String? = null) {
         routeRequestId++
+        routeReady = false
         routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
         routeLine = null
         if (message != null) {
@@ -366,6 +368,7 @@ class MainActivity : ComponentActivity() {
         val a = pickupPoint ?: return
         val b = destinationPoint ?: return
         val requestId = ++routeRequestId
+        routeReady = false
         estimate.text = "Marşrut hesablanır..."
         eta.text = "Yol məlumatları yoxlanılır"
         thread {
@@ -397,6 +400,7 @@ class MainActivity : ComponentActivity() {
                     routeLine = map?.addPolyline(
                         PolylineOptions().addAll(routePoints).color(Color.rgb(190, 40, 65)).width(6f)
                     )
+                    routeReady = routeLine != null
                     val middle = routePoints[routePoints.size / 2]
                     val zoom = when {
                         km > 45 -> 7.8
@@ -554,8 +558,14 @@ class MainActivity : ComponentActivity() {
                 .setPositiveButton("კარგი", null).show()
             return
         }
+        if (!routeReady) {
+            AlertDialog.Builder(this).setTitle("Marşrut hazırlanır")
+                .setMessage("Marşrut hesablanıb xəritədə göstərildikdən sonra sifariş verə bilərsiniz.")
+                .setPositiveButton("კარგი", null).show()
+            return
+        }
         AlertDialog.Builder(this).setTitle("Sifariş vermək")
-            .setMessage("Marşrut və təxmini qiymət hesablanıb. Canlı sürücü sifarişlərini göndərmək üçün server hələ qoşulmayıb.")
+            .setMessage("Marşrut və təxmini qiymət hazırdır. Canlı sürücü sifarişlərini göndərmək üçün server hələ qoşulmayıb.")
             .setPositiveButton("Bağla", null).show()
     }
 
