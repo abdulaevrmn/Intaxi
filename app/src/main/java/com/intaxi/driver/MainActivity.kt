@@ -519,13 +519,7 @@ class MainActivity : ComponentActivity() {
 
         Thread {
             try {
-                val url = URL("https://router.project-osrm.org/route/v1/driving/44.812081,41.475842;44.8332,41.6774?overview=false")
-                val connection = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 10000
-                    readTimeout = 12000
-                }
-                val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                connection.disconnect()
+                val json = fetchRoutingJson("44.812081,41.475842;44.8332,41.6774?overview=false")
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val km = route.getDouble("distance") / 1000.0
                 val minutes = (route.getDouble("duration") / 60.0).toInt()
@@ -540,6 +534,42 @@ class MainActivity : ComponentActivity() {
         }.start()
     }
 
+
+    // İki OSRM-uyğun marşrut serveri: əsas server cavab verməsə ehtiyat server yoxlanılır.
+    private fun fetchRoutingJson(path: String): JSONObject {
+        val endpoints = listOf(
+            "https://router.project-osrm.org/route/v1/driving/",
+            "https://routing.openstreetmap.de/routed-car/route/v1/driving/"
+        )
+        var lastError: Exception? = null
+        for (endpoint in endpoints) {
+            var connection: HttpURLConnection? = null
+            try {
+                connection = (URL(endpoint + path).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 9000
+                    readTimeout = 12000
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("User-Agent", "INTAXI-Driver/0.3")
+                }
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (status !in 200..299) throw IllegalStateException("Routing HTTP $status: $body")
+                val json = JSONObject(body)
+                if (json.optString("code") != "Ok") {
+                    throw IllegalStateException("Routing response: " + json.optString("message", json.optString("code")))
+                }
+                return json
+            } catch (e: Exception) {
+                lastError = e
+            } finally {
+                connection?.disconnect()
+            }
+        }
+        throw IllegalStateException("Hər iki marşrut serveri əlçatmazdır", lastError)
+    }
+
     private fun routeToFrom(fromLat: Double, fromLon: Double, destinationLat: Double, destinationLon: Double, label: String) {
         if (routeRequestActive) return
         navigationTargetLat = destinationLat
@@ -552,15 +582,7 @@ class MainActivity : ComponentActivity() {
             val maneuvers = ArrayList<RouteManeuver>()
             var summary = ""
             try {
-                val url = URL("https://router.project-osrm.org/route/v1/driving/$fromLon,$fromLat;$destinationLon,$destinationLat?overview=full&geometries=geojson&steps=true")
-                val connection = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 12000
-                    readTimeout = 15000
-                    requestMethod = "GET"
-                }
-                val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                connection.disconnect()
-                if (json.optString("code") != "Ok") throw IllegalStateException("OSRM route error")
+                val json = fetchRoutingJson("$fromLon,$fromLat;$destinationLon,$destinationLat?overview=full&geometries=geojson&steps=true")
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val coords = route.getJSONObject("geometry").getJSONArray("coordinates")
                 for (i in 0 until coords.length()) {
@@ -676,15 +698,7 @@ class MainActivity : ComponentActivity() {
             val maneuvers = ArrayList<RouteManeuver>()
             var summary = ""
             try {
-                val url = URL("https://router.project-osrm.org/route/v1/driving/$fromLon,$fromLat;$destinationLon,$destinationLat?overview=full&geometries=geojson&steps=true")
-                val connection = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 12000
-                    readTimeout = 15000
-                    requestMethod = "GET"
-                }
-                val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                connection.disconnect()
-                if (json.optString("code") != "Ok") throw IllegalStateException("OSRM route error")
+                val json = fetchRoutingJson("$fromLon,$fromLat;$destinationLon,$destinationLat?overview=full&geometries=geojson&steps=true")
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val coords = route.getJSONObject("geometry").getJSONArray("coordinates")
                 for (i in 0 until coords.length()) {
