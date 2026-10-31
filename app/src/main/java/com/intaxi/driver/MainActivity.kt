@@ -577,11 +577,17 @@ class MainActivity : ComponentActivity() {
 
         Thread {
             try {
-                val json = fetchRoutingJson("44.812081,41.475842;44.8332,41.6774?overview=false")
+                val json = fetchRoutingJson("44.812081,41.475842;44.8332,41.6774?overview=full&geometries=geojson")
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val km = route.getDouble("distance") / 1000.0
                 val minutes = route.getDouble("duration") / 60.0
-                val fare = calculateClientFare(km, minutes, "სტანდარტი")
+                val routePoints = mutableListOf<LatLng>()
+                val coordinates = route.getJSONObject("geometry").getJSONArray("coordinates")
+                for (i in 0 until coordinates.length()) {
+                    val pair = coordinates.getJSONArray(i)
+                    routePoints.add(LatLng(pair.getDouble(1), pair.getDouble(0)))
+                }
+                val fare = calculateRouteFare(routePoints, km, minutes, "სტანდარტი")
                 runOnUiThread {
                     fareLabel.text = "%.2f ₾".format(Locale.US, fare)
                     (routeRows.getChildAt(0) as? LinearLayout)?.let { line ->
@@ -605,14 +611,118 @@ class MainActivity : ComponentActivity() {
         }.start()
     }
 
-    private fun calculateClientFare(km: Double, minutes: Double, tariffName: String): Double {
-        val comfort = tariffName == "კომფორტი"
-        val base = if (comfort) 5.0 else 3.0
-        val perKm = if (comfort) 0.70 else 0.50
-        val perMinute = if (comfort) 0.25 else 0.20
-        return base + kotlin.math.max(0.0, km - 1.0) * perKm +
-            kotlin.math.max(0.0, minutes - 4.0) * perMinute
+
+    // დროებითი ქალაქის საზღვრის საგზაო ნიშნულები — მომხმარებლის მოწოდებული კოორდინატები.
+    private data class FareBoundaryPoint(val latitude: Double, val longitude: Double)
+    private data class FareInterval(val startMeters: Double, val endMeters: Double, val insideCity: Boolean)
+
+    private val fareBoundaryPoints = listOf(
+        // თბილისი
+        FareBoundaryPoint(41.6893188, 45.0120082),
+        FareBoundaryPoint(41.6300674, 44.9204118),
+        FareBoundaryPoint(41.6851710, 44.7949280),
+        FareBoundaryPoint(41.7133126, 44.7095433),
+        FareBoundaryPoint(41.8210010, 44.7399870),
+        FareBoundaryPoint(41.8273399, 44.7440589),
+        FareBoundaryPoint(41.8270288, 44.8404129),
+        // მარნეული — მოწოდებული ზუსტი საგზაო ნიშნულები
+        FareBoundaryPoint(41.4571066, 44.8109462),
+        FareBoundaryPoint(41.4954837, 44.7833104),
+        FareBoundaryPoint(41.4640589, 44.8316569),
+        FareBoundaryPoint(41.5098849, 44.7930796)
+    )
+
+    private fun fareDistanceMeters(a: LatLng, b: LatLng): Double {
+        val earthRadius = 6371000.0
+        val lat1 = Math.toRadians(a.latitude)
+        val lat2 = Math.toRadians(b.latitude)
+        val dLat = Math.toRadians(b.latitude - a.latitude)
+        val dLon = Math.toRadians(b.longitude - a.longitude)
+        val h = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+            kotlin.math.cos(lat1) * kotlin.math.cos(lat2) *
+            kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+        return 2 * earthRadius * kotlin.math.asin(kotlin.math.sqrt(h.coerceIn(0.0, 1.0)))
     }
+
+    private fun isInsideKnownCity(point: LatLng): Boolean {
+        val tbilisi = LatLng(41.7151, 44.8271)
+        val marneuli = LatLng(41.475842, 44.812081)
+        return fareDistanceMeters(point, tbilisi) <= 11000.0 ||
+            fareDistanceMeters(point, marneuli) <= 4500.0
+    }
+
+    private fun calculateRouteFare(
+        routePoints: List<LatLng>,
+        totalKm: Double,
+        minutes: Double,
+        tariff: String
+    ): Double {
+        val comfort = tariff == "კომფორტი"
+        val base = if (comfort) 5.0 else 3.0
+        val cityRate = if (comfort) 0.70 else 0.50
+        val outsideRate = if (comfort) 0.90 else 0.80
+        val perMinute = if (comfort) 0.25 else 0.20
+        if (routePoints.size < 2 || totalKm <= 0.0) {
+            val rate = if (routePoints.firstOrNull()?.let { isInsideKnownCity(it) } == true) cityRate else outsideRate
+            return base + kotlin.math.max(0.0, totalKm - 1.0) * rate +
+                kotlin.math.max(0.0, minutes - 4.0) * perMinute
+        }
+
+        val cumulative = DoubleArray(routePoints.size)
+        for (i in 1 until routePoints.size) {
+            cumulative[i] = cumulative[i - 1] + fareDistanceMeters(routePoints[i - 1], routePoints[i])
+        }
+        val routeMeters = cumulative.last()
+        if (routeMeters <= 0.0) return base + kotlin.math.max(0.0, totalKm - 1.0) * cityRate +
+            kotlin.math.max(0.0, minutes - 4.0) * perMinute
+
+        val crossings = mutableListOf<Double>()
+        for (boundary in fareBoundaryPoints) {
+            val point = LatLng(boundary.latitude, boundary.longitude)
+            var bestDistance = Double.MAX_VALUE
+            var bestAlongRoute = 0.0
+            for (i in routePoints.indices) {
+                val distance = fareDistanceMeters(routePoints[i], point)
+                if (distance < bestDistance) {
+                    bestDistance = distance
+                    bestAlongRoute = cumulative[i]
+                }
+            }
+            // Route geometry must pass close to a supplied road marker.
+            if (bestDistance <= 350.0 && crossings.none { kotlin.math.abs(it - bestAlongRoute) < 700.0 }) {
+                crossings.add(bestAlongRoute.coerceIn(0.0, routeMeters))
+            }
+        }
+        crossings.sort()
+
+        val intervals = mutableListOf<FareInterval>()
+        var inside = isInsideKnownCity(routePoints.first())
+        var cursor = 0.0
+        for (crossing in crossings) {
+            if (crossing > cursor) intervals.add(FareInterval(cursor, crossing, inside))
+            inside = !inside
+            cursor = crossing
+        }
+        if (cursor < routeMeters) intervals.add(FareInterval(cursor, routeMeters, inside))
+
+        // The base fare includes the first kilometre once; subsequent distance is split by tariff area.
+        var freeMetersLeft = 1000.0
+        var cityChargeKm = 0.0
+        var outsideChargeKm = 0.0
+        for (interval in intervals) {
+            var length = interval.endMeters - interval.startMeters
+            val freePart = kotlin.math.min(length, freeMetersLeft)
+            length -= freePart
+            freeMetersLeft -= freePart
+            if (length > 0.0) {
+                if (interval.insideCity) cityChargeKm += length / 1000.0
+                else outsideChargeKm += length / 1000.0
+            }
+        }
+        val distanceCharge = cityChargeKm * cityRate + outsideChargeKm * outsideRate
+        return base + distanceCharge + kotlin.math.max(0.0, minutes - 4.0) * perMinute
+    }
+
 
 
     private fun paymentBadge(paymentMethod: String): TextView {
