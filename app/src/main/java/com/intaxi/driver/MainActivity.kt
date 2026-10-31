@@ -689,7 +689,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
             // Route geometry must pass close to a supplied road marker.
-            if (bestDistance <= 350.0 && crossings.none { kotlin.math.abs(it - bestAlongRoute) < 700.0 }) {
+            val nearestIndex = cumulative.indices.minByOrNull { kotlin.math.abs(cumulative[it] - bestAlongRoute) } ?: 0
+            val beforeIndex = (nearestIndex - 2).coerceAtLeast(0)
+            val afterIndex = (nearestIndex + 2).coerceAtMost(routePoints.lastIndex)
+            val changesArea = isInsideKnownCity(routePoints[beforeIndex]) != isInsideKnownCity(routePoints[afterIndex])
+            if (bestDistance <= 350.0 && changesArea && crossings.none { kotlin.math.abs(it - bestAlongRoute) < 700.0 }) {
                 crossings.add(bestAlongRoute.coerceIn(0.0, routeMeters))
             }
         }
