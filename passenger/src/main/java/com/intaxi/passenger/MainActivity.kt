@@ -52,7 +52,9 @@ class MainActivity : ComponentActivity() {
     private var destinationPoint: LatLng? = null
     private var pinMode: String? = null
     private val handler = Handler(Looper.getMainLooper())
-    private var searchRunnable: Runnable? = null
+    private var pickupSearchRunnable: Runnable? = null
+    private var destinationSearchRunnable: Runnable? = null
+    private var suppressTextSearch = false
 
     private val bgColor = Color.rgb(18, 18, 21)
     private val panel = Color.rgb(31, 31, 36)
@@ -118,11 +120,6 @@ class MainActivity : ComponentActivity() {
         eta = TextView(this).apply { textSize = 11f; setTextColor(muted); setPadding(dp(3), dp(4), dp(3), 0) }
         column.addView(estimate)
         column.addView(eta)
-        val call = Button(this).apply {
-            text = "ტაქსის გამოძახება"; isAllCaps = false; textSize = 15f; setTextColor(white)
-            background = rounded(burgundy, 12); setOnClickListener { requestTaxi() }
-        }
-        column.addView(call, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
         root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply {
             setMargins(dp(10), dp(30), dp(10), 0)
         })
@@ -142,7 +139,7 @@ class MainActivity : ComponentActivity() {
             visibility = View.GONE
         }
         root.addView(pinHint, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
-            setMargins(dp(16), 0, dp(16), dp(78))
+            setMargins(dp(16), 0, dp(16), dp(142))
         })
         pinConfirm = Button(this).apply {
             text = "წერტილის დადასტურება"; isAllCaps = false; setTextColor(white)
@@ -150,7 +147,27 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { pinMode = null; pinHint.visibility = View.GONE; visibility = View.GONE; updateRoute() }
         }
         root.addView(pinConfirm, FrameLayout.LayoutParams(-1, dp(48), Gravity.BOTTOM).apply {
-            setMargins(dp(16), 0, dp(16), dp(18))
+            setMargins(dp(16), 0, dp(16), dp(82))
+        })
+
+        val bottomMenu = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = rounded(bgColor, 18)
+            elevation = dp(12).toFloat()
+        }
+        val callTaxi = Button(this).apply {
+            text = "ტაქსის გამოძახება"
+            isAllCaps = false
+            textSize = 15f
+            setTextColor(white)
+            background = rounded(burgundy, 12)
+            setOnClickListener { requestTaxi() }
+        }
+        bottomMenu.addView(callTaxi, LinearLayout.LayoutParams(-1, dp(48)))
+        root.addView(bottomMenu, FrameLayout.LayoutParams(-1, dp(66), Gravity.BOTTOM).apply {
+            setMargins(dp(10), 0, dp(10), dp(10))
         })
     }
 
@@ -175,13 +192,17 @@ class MainActivity : ComponentActivity() {
         field.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (s.isNullOrBlank()) return
+                if (suppressTextSearch) return
+                val query = s?.toString()?.trim().orEmpty()
                 if (isPickup) pickupPoint = null else destinationPoint = null
-                searchRunnable?.let { handler.removeCallbacks(it) }
-                val query = s.toString()
-                val task = Runnable { searchAddress(query, isPickup) }
-                searchRunnable = task
-                handler.postDelayed(task, 850)
+                val previous = if (isPickup) pickupSearchRunnable else destinationSearchRunnable
+                previous?.let { handler.removeCallbacks(it) }
+                if (query.length < 3) return
+                val task = Runnable {
+                    if (field.text.toString().trim() == query) searchAddress(query, isPickup)
+                }
+                if (isPickup) pickupSearchRunnable = task else destinationSearchRunnable = task
+                handler.postDelayed(task, 900)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -209,40 +230,70 @@ class MainActivity : ComponentActivity() {
         thread {
             try {
                 val geocoder = Geocoder(this, Locale("ka", "GE"))
-                val results = geocoder.getFromLocationName(query, 5)
-                if (!results.isNullOrEmpty()) runOnUiThread {
-                    val names = results.map { a ->
-                        listOfNotNull(a.thoroughfare, a.subThoroughfare, a.locality, a.subAdminArea).distinct().joinToString(", ").ifBlank { a.getAddressLine(0) ?: query }
+                val here = lastKnownLocation()
+                val results = if (here != null) {
+                    geocoder.getFromLocationName(query, 12, here.latitude - 0.8, here.longitude - 1.0, here.latitude + 0.8, here.longitude + 1.0)
+                } else {
+                    geocoder.getFromLocationName(query, 12, 41.0, 40.0, 43.8, 46.8)
+                }
+                val georgiaResults = results.orEmpty().filter { it.countryCode.equals("GE", ignoreCase = true) }
+                    .distinctBy { "%.5f,%.5f".format(Locale.US, it.latitude, it.longitude) }
+                    .sortedBy { address ->
+                        val reference = here ?: Location("GeorgiaSearch").apply { latitude = 41.7151; longitude = 44.8271 }
+                        val target = Location("result").apply { latitude = address.latitude; longitude = address.longitude }
+                        reference.distanceTo(target)
+                    }.take(7)
+                if (georgiaResults.isNotEmpty()) runOnUiThread {
+                    val currentText = if (isPickup) pickup.text.toString() else destination.text.toString()
+                    if (currentText.trim() != query) return@runOnUiThread
+                    val names = georgiaResults.map { a ->
+                        val street = listOfNotNull(a.thoroughfare, a.subThoroughfare).joinToString(" ")
+                        val town = listOfNotNull(a.locality, a.subAdminArea).distinct().joinToString(", ")
+                        listOf(street, town).filter { it.isNotBlank() }.joinToString(", ").ifBlank { a.getAddressLine(0) ?: query }
                     }.toTypedArray()
-                    AlertDialog.Builder(this).setTitle("აირჩიეთ მისამართი")
+                    AlertDialog.Builder(this).setTitle("აირჩიეთ მისამართი საქართველოში")
                         .setItems(names) { _, which ->
-                            val a = results[which]
-                            val p = LatLng(a.latitude, a.longitude)
-                            if (isPickup) { pickupPoint = p; pickup.setText(names[which]); pickup.setSelection(pickup.text.length) }
-                            else { destinationPoint = p; destination.setText(names[which]); destination.setSelection(destination.text.length) }
-                            map?.animateCamera(CameraUpdateFactory.newLatLngZoom(p, 15.0))
-                            updateRoute()
-                        }.show()
+                            val address = georgiaResults[which]; val point = LatLng(address.latitude, address.longitude)
+                            suppressTextSearch = true
+                            if (isPickup) { pickupPoint = point; pickup.setText(names[which]); pickup.setSelection(pickup.text.length) }
+                            else { destinationPoint = point; destination.setText(names[which]); destination.setSelection(destination.text.length) }
+                            suppressTextSearch = false
+                            map?.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 16.0)); updateRoute()
+                        }.setNegativeButton("გაუქმება", null).show()
+                } else runOnUiThread {
+                    val currentText = if (isPickup) pickup.text.toString() else destination.text.toString()
+                    if (currentText.trim() == query) AlertDialog.Builder(this)
+                        .setMessage("საქართველოში შესაბამისი მისამართი ვერ მოიძებნა. სცადეთ ქუჩის ან ქალაქის უფრო სრული დასახელება.")
+                        .setPositiveButton("კარგი", null).show()
                 }
             } catch (_: Exception) { }
         }
+    }
+
+    private fun lastKnownLocation(): Location? {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
+        return try {
+            val manager = getSystemService(LOCATION_SERVICE) as LocationManager
+            manager.getProviders(true).mapNotNull { manager.getLastKnownLocation(it) }.maxByOrNull { it.time }
+        } catch (_: SecurityException) { null }
     }
 
     private fun reverseGeocode(point: LatLng, mode: String) {
         thread {
             try {
-                val results = Geocoder(this, Locale("ka", "GE")).getFromLocation(point.latitude, point.longitude, 1)
-                val address = results?.firstOrNull()?.let {
+                val results = Geocoder(this, Locale("ka", "GE")).getFromLocation(point.latitude, point.longitude, 3)
+                val address = results.orEmpty().firstOrNull { it.countryCode.equals("GE", true) }?.let {
                     listOfNotNull(it.thoroughfare, it.subThoroughfare, it.locality, it.subAdminArea).distinct().joinToString(", ")
                 }?.ifBlank { null } ?: String.format(Locale.US, "%.5f, %.5f", point.latitude, point.longitude)
-                runOnUiThread {
-                    if (mode == "A") { pickup.setText(address); pickup.setSelection(pickup.text.length) }
-                    else { destination.setText(address); destination.setSelection(destination.text.length) }
+                runOnUiThread { suppressTextSearch = true
+                    if (mode == "A") { pickupPoint = point; pickup.setText(address); pickup.setSelection(pickup.text.length) }
+                    else { destinationPoint = point; destination.setText(address); destination.setSelection(destination.text.length) }
+                    suppressTextSearch = false
                 }
             } catch (_: Exception) { }
         }
     }
-
     private fun updateRoute() {
         val a = pickupPoint ?: return
         val b = destinationPoint ?: return
@@ -279,8 +330,7 @@ class MainActivity : ComponentActivity() {
             requestLocationPermission(); return
         }
         try {
-            val lm = getSystemService(LOCATION_SERVICE) as LocationManager
-            val loc: Location? = lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
+            val loc: Location? = lastKnownLocation()
             if (loc != null) map?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15.0))
         } catch (_: SecurityException) { }
     }
