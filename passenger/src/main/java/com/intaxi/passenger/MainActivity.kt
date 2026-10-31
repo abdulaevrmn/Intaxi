@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
                     if (field.text.toString().trim() == query) searchAddress(query, isPickup)
                 }
                 if (isPickup) pickupSearchRunnable = task else destinationSearchRunnable = task
-                handler.postDelayed(task, 900)
+                handler.postDelayed(task, 1100)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -473,9 +473,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
             // Route geometry must pass close to a supplied road marker.
-            val nearestIndex = cumulative.indices.minByOrNull { kotlin.math.abs(cumulative[it] - bestAlongRoute) } ?: 0
-            val beforeIndex = (nearestIndex - 2).coerceAtLeast(0)
-            val afterIndex = (nearestIndex + 2).coerceAtMost(routePoints.lastIndex)
+            val beforeTarget = (bestAlongRoute - 500.0).coerceAtLeast(0.0)
+            val afterTarget = (bestAlongRoute + 500.0).coerceAtMost(routeMeters)
+            val beforeIndex = cumulative.indices.lastOrNull { cumulative[it] <= beforeTarget } ?: 0
+            val afterIndex = cumulative.indices.firstOrNull { cumulative[it] >= afterTarget } ?: routePoints.lastIndex
             val changesArea = isInsideKnownCity(routePoints[beforeIndex]) != isInsideKnownCity(routePoints[afterIndex])
             if (bestDistance <= 350.0 && changesArea && crossings.none { kotlin.math.abs(it - bestAlongRoute) < 700.0 }) {
                 crossings.add(bestAlongRoute.coerceIn(0.0, routeMeters))
