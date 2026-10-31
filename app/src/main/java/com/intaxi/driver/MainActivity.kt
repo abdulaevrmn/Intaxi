@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
             "აპლიკაციის შესახებ" to "Tətbiq haqqında", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "İNTAXİ sürücü tətbiqi. Versiya 0.3.0",
             "გასვლა" to "Çıxış", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Giriş sistemi hələ əlavə edilməyib.",
             "აპლიკაციის ენა" to "Tətbiqin dili", "ენა" to "Dil",
-            "ნავიგაცია" to "Naviqasiya", "ნავიგაციის აპლიკაცია" to "Naviqasiya tətbiqi", "ავტომატური ნავიგაცია" to "Avtomatik naviqasiya", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın" to "Sifarişi qəbul edəndə seçilmiş tətbiq özü açılsın", "რუკა" to "Xəritə",
+            "ნავიგაცია" to "Naviqasiya", "ნავიგაციის აპლიკაცია" to "Naviqasiya tətbiqi", "ავტომატური ნავიგაცია" to "Avtomatik naviqasiya", "შეკვეთის მიღებისას არჩეული აპლიკაცია ავტომატურად გაიხსნას" to "Sifarişi qəbul edəndə seçilmiş tətbiq özü açılsın", "რუკა" to "Xəritə",
             "3D რუკა" to "3D xəritə", "რუკის დახრილი 3D ხედვა" to "Xəritənin maili 3D görünüşü",
             "რუკის ავტომატური ბრუნვა" to "Xəritənin avtomatik fırlanması", "მოძრაობის მიმართულების მიხედვით" to "Hərəkət istiqamətinə uyğun",
             "სიჩქარის გაფრთხილება" to "Sürət xəbərdarlığı", "სიჩქარის ზღვრის გადაჭერებისას" to "Sürət həddi keçildikdə",
@@ -196,7 +196,7 @@ class MainActivity : ComponentActivity() {
             "აპლიკაციის შესახებ" to "О приложении", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "Приложение водителя İNTAXİ. Версия 0.3.0",
             "გასვლა" to "Выйти", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Система входа ещё не добавлена.",
             "აპლიკაციის ენა" to "Язык приложения", "ენა" to "Язык",
-            "ნავიგაცია" to "Навигация", "ნავიგაციის აპლიკაცია" to "Навигационное приложение", "ავტომატური ნავიგაცია" to "Автоматическая навигация", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın" to "Открывать выбранное приложение при принятии заказа", "რუკა" to "Карта",
+            "ნავიგაცია" to "Навигация", "ნავიგაციის აპლიკაცია" to "Навигационное приложение", "ავტომატური ნავიგაცია" to "Автоматическая навигация", "შეკვეთის მიღებისას არჩეული აპლიკაცია ავტომატურად გაიხსნას" to "Открывать выбранное приложение при принятии заказа", "რუკა" to "Карта",
             "3D რუკა" to "3D-карта", "რუკის დახრილი 3D ხედვა" to "Наклонный 3D-вид карты",
             "რუკის ავტომატური ბრუნვა" to "Автоматический поворот карты", "მოძრაობის მიმართულების მიხედვით" to "По направлению движения",
             "სიჩქარის გაფრთხილება" to "Предупреждение о скорости", "სიჩქარის ზღვარი" to "Ограничение скорости",
@@ -232,7 +232,7 @@ class MainActivity : ComponentActivity() {
             "აპლიკაციის შესახებ" to "About app", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "İNTAXİ Driver app. Version 0.3.0",
             "გასვლა" to "Log out", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Login has not been implemented yet.",
             "აპლიკაციის ენა" to "App language", "ენა" to "Language",
-            "ნავიგაცია" to "Navigation", "ნავიგაციის აპლიკაცია" to "Navigation app", "ავტომატური ნავიგაცია" to "Automatic navigation", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın" to "Open the selected app automatically when accepting an order", "რუკა" to "Map",
+            "ნავიგაცია" to "Navigation", "ნავიგაციის აპლიკაცია" to "Navigation app", "ავტომატური ნავიგაცია" to "Automatic navigation", "შეკვეთის მიღებისას არჩეული აპლიკაცია ავტომატურად გაიხსნას" to "Open the selected app automatically when accepting an order", "რუკა" to "Map",
             "3D რუკა" to "3D map", "რუკის დახრილი 3D ხედვა" to "Tilted 3D map view",
             "რუკის ავტომატური ბრუნვა" to "Automatic map rotation", "მოძრაობის მიმართულების მიხედვით" to "Based on direction of travel",
             "სიჩქარის გაფრთხილება" to "Speed warning", "სიჩქარის ზღვარი" to "Speed limit",
@@ -697,6 +697,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showTripControls(mapFrame: FrameLayout, passengerPicked: Boolean) {
+        navigationTargetLat = if (passengerPicked) 41.6774 else 41.475842
+        navigationTargetLon = if (passengerPicked) 44.8332 else 44.812081
+        navigationTargetLabel = if (passengerPicked) "თბილისი, ორთაჭალა" else "მარნეულის ცენტრალური მოედანი"
         mapFrame.findViewWithTag<View>("intaxi_trip_controls")?.let { mapFrame.removeView(it) }
         val panelView = LinearLayout(this).apply {
             tag = "intaxi_trip_controls"
@@ -1302,7 +1305,7 @@ class MainActivity : ComponentActivity() {
         p.addView(setting("ნავიგაციის აპლიკაცია", prefs.getString("navigation", "İNTAXİ რუკა") ?: "İNTAXİ რუკა") {
             choose("ნავიგაცია", listOf("İNTAXİ რუკა", "Google Maps", "Waze"), "navigation")
         })
-        switchRow(p, "ავტომატური ნავიგაცია", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın", "navigation_auto", false, true)
+        switchRow(p, "ავტომატური ნავიგაცია", "შეკვეთის მიღებისას არჩეული აპლიკაცია ავტომატურად გაიხსნას", "navigation_auto", false, true)
         p.addView(title("რუკა"))
         switchRow(p, "3D რუკა", "რუკის დახრილი 3D ხედვა", "map_3d", false, true)
         switchRow(p, "რუკის ავტომატური ბრუნვა", "მოძრაობის მიმართულების მიხედვით", "map_rotate", true, true)
