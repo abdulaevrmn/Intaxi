@@ -81,7 +81,8 @@ class MainActivity : ComponentActivity() {
                     if (pinMode != null) {
                         val mode = pinMode!!
                         if (mode == "A") pickupPoint = point else destinationPoint = point
-                        pinHint.text = if (mode == "A") "A nöqtəsi seçildi" else "B nöqtəsi seçildi"
+                        clearRoute("Yeni nöqtə seçildi. Təsdiqlədikdən sonra marşrut yenilənəcək.")
+                        pinHint.text = if (mode == "A") "A nöqtəsi seçildi — götürülmə yeri" else "B nöqtəsi seçildi — gediləcək yer"
                         reverseGeocode(point, mode)
                         true
                     } else false
