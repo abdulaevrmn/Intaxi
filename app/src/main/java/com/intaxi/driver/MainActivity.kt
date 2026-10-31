@@ -10,6 +10,10 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.LayerDrawable
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.location.Location
 import android.location.LocationManager
 import android.location.LocationListener
@@ -58,6 +62,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var onlineAction: TextView
     private lateinit var onlineSpin: TextView
     private var onlineSpinnerAnimator: ObjectAnimator? = null
+    private var orderTone: ToneGenerator? = null
+    private var acceptSweepAnimator: ObjectAnimator? = null
     private lateinit var prefs: SharedPreferences
     private lateinit var gpsPermissionLauncher: ActivityResultLauncher<Array<String>>
     private var map: MapLibreMap? = null
@@ -402,7 +408,7 @@ class MainActivity : ComponentActivity() {
         onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(20)))
         mapFrame.addView(onlinePanel, FrameLayout.LayoutParams(
             dp(260), dp(62), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        ).apply { bottomMargin = dp(56) })
+        ).apply { bottomMargin = dp(94) })
 
         page.addView(mapFrame, LinearLayout.LayoutParams(-1, -1))
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
@@ -412,6 +418,7 @@ class MainActivity : ComponentActivity() {
     private fun showDemoOrderCard(mapFrame: FrameLayout) {
         if (demoOrderActive || demoTripStarted) return
         demoOrderActive = true
+        playOrderAlert()
 
         val cardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -419,6 +426,7 @@ class MainActivity : ComponentActivity() {
             background = rounded(Color.rgb(24, 24, 28), 18)
             elevation = dp(14).toFloat()
         }
+
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -430,19 +438,26 @@ class MainActivity : ComponentActivity() {
             setTypeface(null, Typeface.BOLD)
         }, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(TextView(this).apply {
-            text = "სატესტო"
-            textSize = 11f
-            setTextColor(Color.rgb(255, 205, 120))
-            setPadding(dp(8), dp(4), dp(8), dp(4))
-            background = rounded(card, 8)
+            text = "გამოტოვება"
+            textSize = 12f
+            setTextColor(muted)
+            setPadding(dp(8), dp(5), dp(8), dp(5))
+            setOnClickListener {
+                acceptSweepAnimator?.cancel()
+                mapFrame.removeView(cardView)
+                demoOrderActive = false
+                onlinePanel.visibility = View.VISIBLE
+                refreshOnlineUi()
+            }
         })
         header.addView(TextView(this).apply {
             text = "✕"
-            textSize = 21f
+            textSize = 20f
             setTextColor(white)
             gravity = Gravity.CENTER
-            setPadding(dp(10), 0, 0, 0)
+            setPadding(dp(8), 0, 0, 0)
             setOnClickListener {
+                acceptSweepAnimator?.cancel()
                 mapFrame.removeView(cardView)
                 demoOrderActive = false
                 onlinePanel.visibility = View.VISIBLE
@@ -451,59 +466,86 @@ class MainActivity : ComponentActivity() {
         })
         cardView.addView(header)
 
-        val fareRow = LinearLayout(this).apply {
+        val farePaymentRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, dp(9))
+            setPadding(0, dp(9), 0, dp(5))
         }
-        fareRow.addView(TextView(this).apply {
-            text = "— ₾"
-            textSize = 23f
+        farePaymentRow.addView(TextView(this).apply {
+            text = "11.25 ₾"
+            textSize = 25f
             setTextColor(Color.rgb(95, 220, 145))
             setTypeface(null, Typeface.BOLD)
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        fareRow.addView(TextView(this).apply {
-            text = "👤  გიორგი  ★ 4.9"
+        val isCash = true
+        farePaymentRow.addView(TextView(this).apply {
+            text = if (isCash) "●  ნაღდი" else "●  ბარათი"
             textSize = 13f
-            setTextColor(white)
-            gravity = Gravity.END
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(if (isCash) Color.rgb(95, 220, 145) else Color.rgb(100, 175, 255))
+            setPadding(dp(9), dp(7), dp(9), dp(7))
+            background = rounded(if (isCash) Color.rgb(25, 65, 47) else Color.rgb(28, 48, 75), 10)
         })
-        cardView.addView(fareRow)
+        cardView.addView(farePaymentRow)
 
-        val routeInfo = TextView(this).apply {
-            text = "●  მარნეულის ცენტრალური მოედანი\n   მარშრუტი ითვლება…\n\n◎  თბილისი, ორთაჭალა"
-            textSize = 14f
-            setTextColor(white)
-            setLineSpacing(dp(3).toFloat(), 1f)
-            setPadding(0, dp(3), 0, dp(12))
-            tag = "intaxi_demo_route_info"
-        }
-        cardView.addView(routeInfo)
-
-        val actions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        actions.addView(Button(this).apply {
-            text = "გამოტოვება"
-            isAllCaps = false
+        cardView.addView(TextView(this).apply {
+            text = "გიორგი   ★ 4.9"
             textSize = 13f
             setTextColor(white)
-            background = rounded(card, 10)
-            setOnClickListener {
-                mapFrame.removeView(cardView)
-                demoOrderActive = false
-                onlinePanel.visibility = View.VISIBLE
-                refreshOnlineUi()
+            setPadding(0, 0, 0, dp(9))
+        })
+
+        val routeRows = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(2), 0, dp(10))
+        }
+        fun routeRow(letter: String, primary: String, secondary: String, distance: String) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(5), 0, dp(5))
             }
-        }, LinearLayout.LayoutParams(0, dp(47), 1f).apply { marginEnd = dp(6) })
-        actions.addView(Button(this).apply {
-            text = "მიღება  ·  სტანდარტი"
+            row.addView(TextView(this).apply {
+                text = letter
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setTextColor(white)
+                setTypeface(null, Typeface.BOLD)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(if (letter == "A") Color.rgb(28, 145, 91) else red)
+                }
+            }, LinearLayout.LayoutParams(dp(27), dp(27)).apply { marginEnd = dp(10) })
+            val labels = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            labels.addView(TextView(this).apply {
+                text = "$distance  ·  $primary"
+                textSize = 13f
+                setTextColor(white)
+                setTypeface(null, Typeface.BOLD)
+            })
+            labels.addView(TextView(this).apply {
+                text = secondary
+                textSize = 11f
+                setTextColor(Color.rgb(176, 176, 176))
+                setPadding(0, dp(2), 0, 0)
+            })
+            row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
+            routeRows.addView(row)
+        }
+        routeRow("A", "მარნეულის ცენტრალური მოედანი", "მარნეული", "— კმ · — წთ")
+        routeRow("B", "თბილისი, ორთაჭალა", "თბილისი", "— კმ · — წთ")
+        cardView.addView(routeRows)
+
+        val acceptFrame = FrameLayout(this)
+        val acceptButton = Button(this).apply {
+            text = "მიღება"
             isAllCaps = false
-            textSize = 13f
+            textSize = 17f
             setTextColor(white)
-            background = rounded(red, 10)
+            setTypeface(null, Typeface.BOLD)
+            background = rounded(red, 11)
             setOnClickListener {
+                acceptSweepAnimator?.cancel()
                 mapFrame.removeView(cardView)
                 demoOrderActive = false
                 demoTripStarted = false
@@ -514,11 +556,38 @@ class MainActivity : ComponentActivity() {
                 routeTo(41.475842, 44.812081, "მარნეულის ცენტრალური მოედანი")
                 showTripControls(mapFrame, false)
             }
-        }, LinearLayout.LayoutParams(0, dp(47), 1f).apply { marginStart = dp(6) })
-        cardView.addView(actions)
+        }
+        acceptFrame.addView(acceptButton, FrameLayout.LayoutParams(-1, dp(53)))
+        val tariff = TextView(this).apply {
+            text = "სტანდარტი"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(muted)
+            setPadding(0, dp(5), 0, 0)
+        }
+        val acceptArea = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(acceptFrame, LinearLayout.LayoutParams(-1, dp(53)))
+            addView(tariff, LinearLayout.LayoutParams(-1, dp(22)))
+        }
+        cardView.addView(acceptArea)
+
+        val sweep = GradientDrawable(
+            GradientDrawable.Orientation.RIGHT_LEFT,
+            intArrayOf(Color.argb(0, 255, 255, 255), Color.argb(115, 255, 255, 255))
+        ).apply { cornerRadius = dp(11).toFloat() }
+        val clipSweep = ClipDrawable(sweep, Gravity.END, ClipDrawable.HORIZONTAL)
+        acceptButton.background = LayerDrawable(arrayOf(rounded(red, 11), clipSweep))
+        acceptSweepAnimator = ObjectAnimator.ofInt(clipSweep, "level", 0, 10000).apply {
+            duration = 7800
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.RESTART
+            interpolator = LinearInterpolator()
+            start()
+        }
 
         mapFrame.addView(cardView, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
-            setMargins(dp(8), 0, dp(8), dp(46))
+            setMargins(dp(8), 0, dp(8), dp(84))
         })
 
         Thread {
@@ -528,16 +597,35 @@ class MainActivity : ComponentActivity() {
                 val km = route.getDouble("distance") / 1000.0
                 val minutes = (route.getDouble("duration") / 60.0).toInt()
                 runOnUiThread {
-                    routeInfo.text = "●  მარნეულის ცენტრალური მოედანი\n   %.1f კმ  ·  დაახლოებით %d წთ\n\n◎  თბილისი, ორთაჭალა".format(Locale.US, km, minutes)
+                    val rows = routeRows
+                    (rows.getChildAt(0) as? LinearLayout)?.let { line ->
+                        (line.getChildAt(1) as? LinearLayout)?.let { labels ->
+                            (labels.getChildAt(0) as? TextView)?.text = "%.1f კმ · %d წთ  ·  მარნეულის ცენტრალური მოედანი".format(Locale.US, 0.0, 0)
+                        }
+                    }
+                    (rows.getChildAt(0) as? LinearLayout)?.let { line ->
+                        (line.getChildAt(1) as? LinearLayout)?.let { labels ->
+                            (labels.getChildAt(0) as? TextView)?.text = "მგზავრამდე  ·  მარნეულის ცენტრალური მოედანი"
+                            (labels.getChildAt(1) as? TextView)?.text = "მანძილი და დრო GPS-ის მიხედვით განისაზღვრება"
+                        }
+                    }
+                    (rows.getChildAt(1) as? LinearLayout)?.let { line ->
+                        (line.getChildAt(1) as? LinearLayout)?.let { labels ->
+                            (labels.getChildAt(0) as? TextView)?.text = "სრული გზა  ·  %.1f კმ · %d წთ".format(Locale.US, km, minutes)
+                            (labels.getChildAt(1) as? TextView)?.text = "თბილისი, ორთაჭალა"
+                        }
+                    }
                 }
-            } catch (_: Exception) {
-                runOnUiThread {
-                    routeInfo.text = "●  მარნეულის ცენტრალური მოედანი\n   მანძილი ვერ გამოითვალა — ინტერნეტი შეამოწმეთ\n\n◎  თბილისი, ორთაჭალა"
-                }
-            }
+            } catch (_: Exception) { }
         }.start()
     }
 
+    private fun playOrderAlert() {
+        try {
+            if (orderTone == null) orderTone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 85)
+            orderTone?.startTone(ToneGenerator.TONE_PROP_BEEP2, 650)
+        } catch (_: Exception) { }
+    }
 
     // İki OSRM-uyğun marşrut serveri: əsas server cavab verməsə ehtiyat server yoxlanılır.
     private fun fetchRoutingJson(path: String): JSONObject {
@@ -1508,5 +1596,5 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState); mapView.onSaveInstanceState(outState)
     }
-    override fun onDestroy() { stopNavigationUpdates(); tts?.stop(); tts?.shutdown(); mapView.onDestroy(); super.onDestroy() }
+    override fun onDestroy() { acceptSweepAnimator?.cancel(); orderTone?.release(); stopNavigationUpdates(); tts?.stop(); tts?.shutdown(); mapView.onDestroy(); super.onDestroy() }
 }
