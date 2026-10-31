@@ -401,7 +401,7 @@ class MainActivity : ComponentActivity() {
         onlinePanel.addView(onlineAction, LinearLayout.LayoutParams(-1, dp(20)))
         mapFrame.addView(onlinePanel, FrameLayout.LayoutParams(
             dp(260), dp(62), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        ).apply { bottomMargin = dp(18) })
+        ).apply { bottomMargin = dp(56) })
 
         page.addView(mapFrame, LinearLayout.LayoutParams(-1, -1))
         content.addView(page, FrameLayout.LayoutParams(-1, -1))
@@ -514,7 +514,7 @@ class MainActivity : ComponentActivity() {
         cardView.addView(actions)
 
         mapFrame.addView(cardView, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
-            setMargins(dp(8), 0, dp(8), dp(8))
+            setMargins(dp(8), 0, dp(8), dp(46))
         })
 
         Thread {
@@ -598,7 +598,19 @@ class MainActivity : ComponentActivity() {
                     map?.animateCamera(org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(LatLng(fromLat, fromLon), 11.5))
                     speakNavigation(summary)
                 } else {
-                    notice("ნავიგაცია", error + "\nსატესტო მარშრუტი ინტერნეტს საჭიროებს.")
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("ნავიგაცია")
+                        .setMessage(error + "\nშეგიძლიათ სცადოთ Google Maps-ში გახსნა. თუ რუკა წინასწარ გაქვთ ჩამოტვირთული, შესაძლოა ოფლაინ მარშრუტიც იმუშაოს.")
+                        .setPositiveButton("Google Maps-ში გახსნა") { _, _ ->
+                            try {
+                                val uri = android.net.Uri.parse("google.navigation:q=$destinationLat,$destinationLon&mode=d")
+                                startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            } catch (_: Exception) {
+                                notice("ნავიგაცია", "Google Maps ვერ გაიხსნა. შეამოწმეთ, არის თუ არა აპლიკაცია დაყენებული.")
+                            }
+                        }
+                        .setNegativeButton("დახურვა", null)
+                        .show()
                 }
             }
         }.start()
