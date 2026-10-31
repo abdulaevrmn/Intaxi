@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var navBar: LinearLayout
     private lateinit var radar: LinearLayout
     private lateinit var onlinePanel: LinearLayout
+    private var ordersMapFrame: FrameLayout? = null
     private lateinit var onlineStatus: TextView
     private lateinit var onlineAction: TextView
     private lateinit var onlineSpin: TextView
@@ -175,7 +176,8 @@ class MainActivity : ComponentActivity() {
             "შეტყობინებები" to "Bildirişlər", "აპლიკაციის შეტყობინებები" to "Tətbiq bildirişləri",
             "GPS ნებართვა" to "GPS icazəsi", "ტელეფონის მდებარეობის პარამეტრები" to "Telefonun məkan ayarları",
             "პარამეტრები ამ ეტაპზე ინახება ამ ტელეფონში. ანგარიშთან სინქრონიზაცია დაემატება სერვერის ჩართვის შემდეგ." to "Ayarlar hazırda bu telefonda saxlanılır. Hesabla sinxronizasiya server qoşulduqdan sonra əlavə ediləcək.",
-            "პროფილზე დაბრუნება" to "Profilə qayıt", "ჩართულია" to "Aktivdir", "გამორთულია" to "Deaktivdir"
+            "პროფილზე დაბრუნება" to "Profilə qayıt", "ჩართულია" to "Aktivdir", "გამორთულია" to "Deaktivdir",
+            "სატესტო შეკვეთა" to "Test sifarişi", "ტესტური შეკვეთა" to "Test sifarişi"
         )
         val ru = mapOf(
             "დღეს გამოიმუშავეთ" to "Заработано сегодня",
@@ -195,7 +197,7 @@ class MainActivity : ComponentActivity() {
             "მხარდაჭერისა და მგზავრებთან მიმოწერა ჩაირთვება სერვერთან და მგზავრის აპლიკაციასთან დაკავშირების შემდეგ." to "Поддержка и переписка с пассажирами заработают после подключения сервера и приложения пассажира.",
             "რეალური შეტყობინებები და შეკვეთის ჩატი საჭიროებს სერვერს." to "Для сообщений и чата заказа необходим сервер.",
             "მძღოლის ანგარიში" to "Аккаунт водителя", "სახელი და გვარი\nარ არის მითითებული\n\nტელეფონი\nარ არის მითითებული" to "Имя и фамилия\nНе указаны\n\nТелефон\nНе указан",
-            "ტარიფის ჩართვა / გამორთვა" to "Включить / выключить тариф",
+            "ტარიფის ჩართვა / გამორთვა" to "Включить / выключить тариф", "სატესტო შეკვეთა" to "Тестовый заказ", "ტესტური შეკვეთა" to "Тестовый заказ",
             "პარამეტრები" to "Настройки", "აპლიკაციის პარამეტრები" to "Настройки приложения", "ენა, ნავიგაცია, რუკა, ხმები და სხვა" to "Язык, навигация, карта, звуки и другое",
             "ავტომობილი" to "Автомобиль", "ავტომობილის მონაცემები" to "Данные автомобиля",
             "მონაცემების მართვა დაემატება მძღოლის ანგარიშის მოდულთან ერთად." to "Управление данными появится вместе с модулем аккаунта водителя.",
@@ -341,6 +343,7 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(7), dp(3), dp(7), dp(5))
         }
         val mapFrame = FrameLayout(this)
+        ordersMapFrame = mapFrame
         (mapView.parent as? ViewGroup)?.removeView(mapView)
         mapFrame.addView(mapView, FrameLayout.LayoutParams(-1, -1))
 
@@ -429,33 +432,19 @@ class MainActivity : ComponentActivity() {
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
         }
-        header.addView(TextView(this).apply {
-            text = "ახალი შეკვეთა"
-            textSize = 16f
-            setTextColor(white)
-            setTypeface(null, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(TextView(this).apply {
+        val skip = TextView(this).apply {
             text = "გამოტოვება"
             textSize = 12f
             setTextColor(muted)
-            setPadding(dp(8), dp(5), dp(8), dp(5))
-            setOnClickListener {
-                acceptSweepAnimator?.cancel()
-                mapFrame.removeView(cardView)
-                demoOrderActive = false
-                onlinePanel.visibility = View.VISIBLE
-                refreshOnlineUi()
-            }
-        })
-        header.addView(TextView(this).apply {
-            text = "✕"
-            textSize = 20f
-            setTextColor(white)
             gravity = Gravity.CENTER
-            setPadding(dp(8), 0, 0, 0)
+            setPadding(dp(13), dp(6), dp(13), dp(6))
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(38, 38, 43))
+                cornerRadius = dp(9).toFloat()
+                setStroke(dp(1), Color.rgb(85, 85, 92))
+            }
             setOnClickListener {
                 acceptSweepAnimator?.cancel()
                 mapFrame.removeView(cardView)
@@ -463,29 +452,37 @@ class MainActivity : ComponentActivity() {
                 onlinePanel.visibility = View.VISIBLE
                 refreshOnlineUi()
             }
-        })
+        }
+        header.addView(skip)
         cardView.addView(header)
 
         val farePaymentRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(9), 0, dp(5))
+            setPadding(0, dp(9), 0, dp(7))
         }
-        farePaymentRow.addView(TextView(this).apply {
-            text = "11.25 ₾"
-            textSize = 25f
+        val fareLabel = TextView(this).apply {
+            text = "— ₾"
+            textSize = 24f
             setTextColor(Color.rgb(95, 220, 145))
             setTypeface(null, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        farePaymentRow.addView(paymentBadge("ნაღდი"))
-        cardView.addView(farePaymentRow)
-
-        cardView.addView(TextView(this).apply {
-            text = "გიორგი   ★ 4.9"
-            textSize = 13f
-            setTextColor(white)
-            setPadding(0, 0, 0, dp(9))
+            maxLines = 1
+        }
+        farePaymentRow.addView(fareLabel, LinearLayout.LayoutParams(-2, -2))
+        farePaymentRow.addView(paymentBadge("ნაღდი"), LinearLayout.LayoutParams(-2, -2).apply {
+            marginStart = dp(8)
         })
+        val clientLabel = TextView(this).apply {
+            text = "გიორგი  ★ 4.9"
+            textSize = 12f
+            setTextColor(white)
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            maxLines = 1
+        }
+        farePaymentRow.addView(clientLabel, LinearLayout.LayoutParams(0, -2, 1f).apply {
+            marginStart = dp(8)
+        })
+        cardView.addView(farePaymentRow)
 
         val routeRows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -528,14 +525,9 @@ class MainActivity : ComponentActivity() {
         routeRow("B", "თბილისი, ორთაჭალა", "თბილისი", "— კმ · — წთ")
         cardView.addView(routeRows)
 
-        val acceptFrame = FrameLayout(this)
-        val acceptButton = Button(this).apply {
-            text = "მიღება"
-            isAllCaps = false
-            textSize = 17f
-            setTextColor(white)
-            setTypeface(null, Typeface.BOLD)
+        val acceptFrame = FrameLayout(this).apply {
             background = rounded(red, 11)
+            isClickable = true
             setOnClickListener {
                 acceptSweepAnimator?.cancel()
                 mapFrame.removeView(cardView)
@@ -549,27 +541,28 @@ class MainActivity : ComponentActivity() {
                 showTripControls(mapFrame, false)
             }
         }
-        acceptFrame.addView(acceptButton, FrameLayout.LayoutParams(-1, dp(53)))
+        acceptFrame.addView(TextView(this).apply {
+            text = "მიღება"
+            textSize = 17f
+            gravity = Gravity.CENTER
+            setTextColor(white)
+            setTypeface(null, Typeface.BOLD)
+        }, FrameLayout.LayoutParams(-1, dp(34), Gravity.TOP))
         val tariff = TextView(this).apply {
             text = "სტანდარტი"
-            textSize = 12f
+            textSize = 10f
             gravity = Gravity.CENTER
-            setTextColor(muted)
-            setPadding(0, dp(5), 0, 0)
+            setTextColor(Color.rgb(225, 215, 218))
         }
-        val acceptArea = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(acceptFrame, LinearLayout.LayoutParams(-1, dp(53)))
-            addView(tariff, LinearLayout.LayoutParams(-1, dp(22)))
-        }
-        cardView.addView(acceptArea)
+        acceptFrame.addView(tariff, FrameLayout.LayoutParams(-1, dp(22), Gravity.BOTTOM))
+        cardView.addView(acceptFrame, LinearLayout.LayoutParams(-1, dp(58)))
 
         val sweep = GradientDrawable(
             GradientDrawable.Orientation.RIGHT_LEFT,
             intArrayOf(Color.argb(0, 255, 255, 255), Color.argb(115, 255, 255, 255))
         ).apply { cornerRadius = dp(11).toFloat() }
         val clipSweep = ClipDrawable(sweep, Gravity.END, ClipDrawable.HORIZONTAL)
-        acceptButton.background = LayerDrawable(arrayOf(rounded(red, 11), clipSweep))
+        acceptFrame.background = LayerDrawable(arrayOf(rounded(red, 11), clipSweep))
         acceptSweepAnimator = ObjectAnimator.ofInt(clipSweep, "level", 0, 10000).apply {
             duration = 7800
             repeatCount = ObjectAnimator.INFINITE
@@ -587,25 +580,40 @@ class MainActivity : ComponentActivity() {
                 val json = fetchRoutingJson("44.812081,41.475842;44.8332,41.6774?overview=false")
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val km = route.getDouble("distance") / 1000.0
-                val minutes = (route.getDouble("duration") / 60.0).toInt()
+                val minutes = route.getDouble("duration") / 60.0
+                val fare = calculateClientFare(km, minutes, "სტანდარტი")
                 runOnUiThread {
-                    val rows = routeRows
-                    (rows.getChildAt(0) as? LinearLayout)?.let { line ->
+                    fareLabel.text = "%.2f ₾".format(Locale.US, fare)
+                    (routeRows.getChildAt(0) as? LinearLayout)?.let { line ->
                         (line.getChildAt(1) as? LinearLayout)?.let { labels ->
-                            (labels.getChildAt(0) as? TextView)?.text = "მგზავრამდე  ·  მარნეულის ცენტრალური მოედანი"
-                            (labels.getChildAt(1) as? TextView)?.text = "მანძილი და დრო GPS-ის მიხედვით განისაზღვრება"
+                            (labels.getChildAt(0) as? TextView)?.text = "A · მარნეულის ცენტრალური მოედანი"
+                            (labels.getChildAt(1) as? TextView)?.text = "ჩასხდომის ადგილი"
                         }
                     }
-                    (rows.getChildAt(1) as? LinearLayout)?.let { line ->
+                    (routeRows.getChildAt(1) as? LinearLayout)?.let { line ->
                         (line.getChildAt(1) as? LinearLayout)?.let { labels ->
-                            (labels.getChildAt(0) as? TextView)?.text = "სრული გზა  ·  %.1f კმ · %d წთ".format(Locale.US, km, minutes)
-                            (labels.getChildAt(1) as? TextView)?.text = "თბილისი, ორთაჭალა"
+                            (labels.getChildAt(0) as? TextView)?.text =
+                                "B · თბილისი, ორთაჭალა  ·  %.1f კმ".format(Locale.US, km)
+                            (labels.getChildAt(1) as? TextView)?.text =
+                                "სავარაუდო მგზავრობის დრო: %.0f წთ".format(Locale.US, minutes)
                         }
                     }
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+                runOnUiThread { fareLabel.text = "ფასი ვერ გამოითვალა" }
+            }
         }.start()
     }
+
+    private fun calculateClientFare(km: Double, minutes: Double, tariffName: String): Double {
+        val comfort = tariffName == "კომფორტი"
+        val base = if (comfort) 5.0 else 3.0
+        val perKm = if (comfort) 0.70 else 0.50
+        val perMinute = if (comfort) 0.25 else 0.20
+        return base + kotlin.math.max(0.0, km - 1.0) * perKm +
+            kotlin.math.max(0.0, minutes - 4.0) * perMinute
+    }
+
 
     private fun paymentBadge(paymentMethod: String): TextView {
         val isCash = paymentMethod == "ნაღდი"
@@ -1369,6 +1377,12 @@ class MainActivity : ComponentActivity() {
         listOf("სტანდარტი", "კომფორტი").forEach {
             switchRow(p, it, "ტარიფის ჩართვა / გამორთვა", "tariff_" + it, true, false)
         }
+        p.addView(title("ტესტირება"))
+        p.addView(setting("სატესტო შეკვეთა", "მარნეული — თბილისი · სატესტო შეკვეთის ბარათი") {
+            showTab("შეკვეთები")
+            onlinePanel.visibility = View.GONE
+            ordersMapFrame?.let { showDemoOrderCard(it) }
+        })
         p.addView(title("პარამეტრები"))
         p.addView(setting("აპლიკაციის პარამეტრები", "ენა, ნავიგაცია, რუკა, ხმები და სხვა") { settingsScreen() })
         p.addView(setting("ავტომობილი", "ავტომობილის მონაცემები") {
