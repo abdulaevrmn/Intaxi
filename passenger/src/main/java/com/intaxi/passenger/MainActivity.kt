@@ -24,6 +24,8 @@ import androidx.core.app.ActivityCompat
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.annotations.Polyline
+import org.maplibre.android.annotations.PolylineOptions
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
@@ -47,6 +49,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var pinHint: TextView
     private lateinit var pinConfirm: Button
     private var map: MapLibreMap? = null
+    private var routeLine: Polyline? = null
+    private var routeRequestId = 0
     private var selectedTariff = "სტანდარტი"
     private var pickupPoint: LatLng? = null
     private var destinationPoint: LatLng? = null
@@ -90,83 +94,85 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun buildPassengerScreen() {
-        val column = LinearLayout(this).apply {
+        val topPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
+            setPadding(dp(14), dp(11), dp(14), dp(12))
             background = rounded(bgColor, 20)
-            elevation = dp(9).toFloat()
+            elevation = dp(10).toFloat()
         }
-        column.addView(TextView(this).apply {
+        topPanel.addView(TextView(this).apply {
             text = "İNTAXİ"; textSize = 22f; setTextColor(white)
-            setTypeface(null, Typeface.BOLD); setPadding(dp(2), 0, 0, dp(8))
+            setTypeface(null, Typeface.BOLD); setPadding(dp(2), 0, 0, dp(9))
         })
-        val aRow = addressRow("საიდან?  ჩასხდომის მისამართი", true)
-        val bRow = addressRow("სად მიდიხართ?  დანიშნულება", false)
-        column.addView(aRow, LinearLayout.LayoutParams(-1, dp(50)).apply { bottomMargin = dp(7) })
-        column.addView(bRow, LinearLayout.LayoutParams(-1, dp(50)).apply { bottomMargin = dp(8) })
-        column.addView(TextView(this).apply {
-            text = "აირჩიეთ ტარიფი"; textSize = 12f; setTextColor(muted); setPadding(dp(2), 0, 0, dp(5))
-        })
-        val tariffs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        standard = tariffButton("სტანდარტი", true)
-        comfort = tariffButton("კომფორტი", false)
-        tariffs.addView(standard, LinearLayout.LayoutParams(0, dp(42), 1f).apply { marginEnd = dp(5) })
-        tariffs.addView(comfort, LinearLayout.LayoutParams(0, dp(42), 1f).apply { marginStart = dp(5) })
-        column.addView(tariffs)
-        estimate = TextView(this).apply {
-            text = "მანძილი და სავარაუდო ფასი გამოჩნდება A და B წერტილების არჩევის შემდეგ"
-            textSize = 12f; setTextColor(white); setPadding(dp(3), dp(8), dp(3), 0)
-        }
-        eta = TextView(this).apply { textSize = 11f; setTextColor(muted); setPadding(dp(3), dp(4), dp(3), 0) }
-        column.addView(estimate)
-        column.addView(eta)
-        root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply {
-            setMargins(dp(10), dp(30), dp(10), 0)
+        topPanel.addView(addressRow("საიდან?  ჩასხდომის ადგილი", true),
+            LinearLayout.LayoutParams(-1, dp(50)).apply { bottomMargin = dp(7) })
+        topPanel.addView(addressRow("სად მიდიხართ?  დანიშნულება", false),
+            LinearLayout.LayoutParams(-1, dp(50)))
+        root.addView(topPanel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply {
+            setMargins(dp(10), dp(28), dp(10), 0)
         })
 
         val locate = TextView(this).apply {
-            text = "⌖"; textSize = 28f; gravity = Gravity.CENTER; setTextColor(white)
+            text = "⌖"; textSize = 27f; gravity = Gravity.CENTER; setTextColor(white)
             background = rounded(panel, 28); elevation = dp(7).toFloat()
             setOnClickListener { currentLocation() }
         }
-        root.addView(locate, FrameLayout.LayoutParams(dp(52), dp(52), Gravity.END or Gravity.CENTER_VERTICAL).apply {
-            marginEnd = dp(12)
+        root.addView(locate, FrameLayout.LayoutParams(dp(50), dp(50), Gravity.END or Gravity.TOP).apply {
+            setMargins(0, dp(205), dp(12), 0)
         })
+
         pinHint = TextView(this).apply {
-            text = "რუკაზე წერტილის ასარჩევად დააჭირეთ „რუკაზე“"
-            textSize = 12f; setTextColor(white); gravity = Gravity.CENTER
-            setPadding(dp(12), dp(8), dp(12), dp(8)); background = rounded(Color.argb(220, 25, 25, 30), 10)
-            visibility = View.GONE
+            text = "რუკაზე მონიშნეთ სასურველი წერტილი"; textSize = 12f
+            setTextColor(white); gravity = Gravity.CENTER
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = rounded(Color.argb(235, 25, 25, 30), 10); visibility = View.GONE
         }
         root.addView(pinHint, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
-            setMargins(dp(16), 0, dp(16), dp(142))
+            setMargins(dp(16), 0, dp(16), dp(225))
         })
         pinConfirm = Button(this).apply {
             text = "წერტილის დადასტურება"; isAllCaps = false; setTextColor(white)
             background = rounded(burgundy, 12); visibility = View.GONE
-            setOnClickListener { pinMode = null; pinHint.visibility = View.GONE; visibility = View.GONE; updateRoute() }
+            setOnClickListener {
+                pinMode = null; pinHint.visibility = View.GONE; visibility = View.GONE
+                updateRoute()
+            }
         }
-        root.addView(pinConfirm, FrameLayout.LayoutParams(-1, dp(48), Gravity.BOTTOM).apply {
-            setMargins(dp(16), 0, dp(16), dp(82))
+        root.addView(pinConfirm, FrameLayout.LayoutParams(-1, dp(44), Gravity.BOTTOM).apply {
+            setMargins(dp(16), 0, dp(16), dp(174))
         })
 
-        val bottomMenu = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            background = rounded(bgColor, 18)
-            elevation = dp(12).toFloat()
+        val orderPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = rounded(bgColor, 20); elevation = dp(12).toFloat()
         }
+        orderPanel.addView(TextView(this).apply {
+            text = "აირჩიეთ ტარიფი"; textSize = 12f; setTextColor(muted)
+            setPadding(dp(2), 0, 0, dp(6))
+        })
+        val tariffs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        standard = tariffButton("სტანდარტი", true)
+        comfort = tariffButton("კომფორტი", false)
+        tariffs.addView(standard, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginEnd = dp(5) })
+        tariffs.addView(comfort, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(5) })
+        orderPanel.addView(tariffs)
+        estimate = TextView(this).apply {
+            text = "მიუთითეთ ჩასხდომისა და დანიშნულების მისამართები"
+            textSize = 13f; setTextColor(white); setPadding(dp(3), dp(10), dp(3), 0)
+        }
+        eta = TextView(this).apply {
+            text = "მარშრუტისა და ფასის გამოთვლა ავტომატურად მოხდება"
+            textSize = 11f; setTextColor(muted); setPadding(dp(3), dp(4), dp(3), dp(8))
+        }
+        orderPanel.addView(estimate); orderPanel.addView(eta)
         val callTaxi = Button(this).apply {
-            text = "ტაქსის გამოძახება"
-            isAllCaps = false
-            textSize = 15f
-            setTextColor(white)
-            background = rounded(burgundy, 12)
-            setOnClickListener { requestTaxi() }
+            text = "შეკვეთის მიცემა"; isAllCaps = false; textSize = 16f
+            setTypeface(null, Typeface.BOLD); setTextColor(white)
+            background = rounded(burgundy, 13); setOnClickListener { requestTaxi() }
         }
-        bottomMenu.addView(callTaxi, LinearLayout.LayoutParams(-1, dp(48)))
-        root.addView(bottomMenu, FrameLayout.LayoutParams(-1, dp(66), Gravity.BOTTOM).apply {
+        orderPanel.addView(callTaxi, LinearLayout.LayoutParams(-1, dp(52)))
+        root.addView(orderPanel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
             setMargins(dp(10), 0, dp(10), dp(10))
         })
     }
@@ -195,6 +201,7 @@ class MainActivity : ComponentActivity() {
                 if (suppressTextSearch) return
                 val query = s?.toString()?.trim().orEmpty()
                 if (isPickup) pickupPoint = null else destinationPoint = null
+                clearRoute("A და B მისამართები შეიცვალა. აირჩიეთ ორივე წერტილი თავიდან.")
                 val previous = if (isPickup) pickupSearchRunnable else destinationSearchRunnable
                 previous?.let { handler.removeCallbacks(it) }
                 if (query.length < 3) return
@@ -229,44 +236,72 @@ class MainActivity : ComponentActivity() {
     private fun searchAddress(query: String, isPickup: Boolean) {
         thread {
             try {
-                val geocoder = Geocoder(this, Locale("ka", "GE"))
-                val here = lastKnownLocation()
-                val results = if (here != null) {
-                    geocoder.getFromLocationName(query, 12, here.latitude - 0.8, here.longitude - 1.0, here.latitude + 0.8, here.longitude + 1.0)
-                } else {
-                    geocoder.getFromLocationName(query, 12, 41.0, 40.0, 43.8, 46.8)
+                val encoded = URLEncoder.encode(query, "UTF-8")
+                val url = URL("https://nominatim.openstreetmap.org/search?q=$encoded&format=jsonv2&addressdetails=1&countrycodes=ge&limit=10&viewbox=40.0,43.8,46.8,41.0&bounded=1")
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 10000; readTimeout = 12000
+                    setRequestProperty("User-Agent", "INTAXI-Android/1.0 (Georgia taxi app)")
+                    setRequestProperty("Accept-Language", "ka,en")
                 }
-                val georgiaResults = results.orEmpty().filter { it.countryCode.equals("GE", ignoreCase = true) }
-                    .distinctBy { "%.5f,%.5f".format(Locale.US, it.latitude, it.longitude) }
-                    .sortedBy { address ->
-                        val reference = here ?: Location("GeorgiaSearch").apply { latitude = 41.7151; longitude = 44.8271 }
-                        val target = Location("result").apply { latitude = address.latitude; longitude = address.longitude }
-                        reference.distanceTo(target)
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+                val json = org.json.JSONArray(response)
+                val here = lastKnownLocation()
+                val found = mutableListOf<Pair<String, LatLng>>()
+                for (i in 0 until json.length()) {
+                    val item = json.getJSONObject(i)
+                    val lat = item.optDouble("lat", Double.NaN)
+                    val lon = item.optDouble("lon", Double.NaN)
+                    if (!lat.isFinite() || !lon.isFinite() || lat !in 41.0..43.8 || lon !in 40.0..46.8) continue
+                    val address = item.optJSONObject("address")
+                    val street = listOfNotNull(
+                        address?.optString("road")?.takeIf { it.isNotBlank() },
+                        address?.optString("house_number")?.takeIf { it.isNotBlank() }
+                    ).joinToString(" ")
+                    val town = listOf("city", "town", "village", "municipality", "suburb")
+                        .mapNotNull { key -> address?.optString(key)?.takeIf { it.isNotBlank() } }
+                        .distinct().firstOrNull().orEmpty()
+                    val label = listOf(street, town).filter { it.isNotBlank() }.joinToString(", ")
+                        .ifBlank { item.optString("display_name").split(",").take(3).joinToString(", ") }
+                    found.add(label to LatLng(lat, lon))
+                }
+                val sorted = found.distinctBy { "%.5f,%.5f".format(Locale.US, it.second.latitude, it.second.longitude) }
+                    .sortedBy { pair ->
+                        if (here == null) 0f else Location("search").apply {
+                            latitude = pair.second.latitude; longitude = pair.second.longitude
+                        }.let { here.distanceTo(it) }
                     }.take(7)
-                if (georgiaResults.isNotEmpty()) runOnUiThread {
+                if (sorted.isNotEmpty()) runOnUiThread {
                     val currentText = if (isPickup) pickup.text.toString() else destination.text.toString()
                     if (currentText.trim() != query) return@runOnUiThread
-                    val names = georgiaResults.map { a ->
-                        val street = listOfNotNull(a.thoroughfare, a.subThoroughfare).joinToString(" ")
-                        val town = listOfNotNull(a.locality, a.subAdminArea).distinct().joinToString(", ")
-                        listOf(street, town).filter { it.isNotBlank() }.joinToString(", ").ifBlank { a.getAddressLine(0) ?: query }
-                    }.toTypedArray()
+                    val labels = sorted.map { it.first }.toTypedArray()
                     AlertDialog.Builder(this).setTitle("აირჩიეთ მისამართი საქართველოში")
-                        .setItems(names) { _, which ->
-                            val address = georgiaResults[which]; val point = LatLng(address.latitude, address.longitude)
+                        .setItems(labels) { _, which ->
+                            val point = sorted[which].second
                             suppressTextSearch = true
-                            if (isPickup) { pickupPoint = point; pickup.setText(names[which]); pickup.setSelection(pickup.text.length) }
-                            else { destinationPoint = point; destination.setText(names[which]); destination.setSelection(destination.text.length) }
+                            if (isPickup) {
+                                pickupPoint = point; pickup.setText(labels[which]); pickup.setSelection(pickup.text.length)
+                            } else {
+                                destinationPoint = point; destination.setText(labels[which]); destination.setSelection(destination.text.length)
+                            }
                             suppressTextSearch = false
-                            map?.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 16.0)); updateRoute()
+                            map?.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 16.0))
+                            updateRoute()
                         }.setNegativeButton("გაუქმება", null).show()
                 } else runOnUiThread {
                     val currentText = if (isPickup) pickup.text.toString() else destination.text.toString()
                     if (currentText.trim() == query) AlertDialog.Builder(this)
-                        .setMessage("საქართველოში შესაბამისი მისამართი ვერ მოიძებნა. სცადეთ ქუჩის ან ქალაქის უფრო სრული დასახელება.")
+                        .setMessage("საქართველოში შესაბამისი მისამართი ვერ მოიძებნა. სცადეთ ქუჩის სახელი და ქალაქი.")
                         .setPositiveButton("კარგი", null).show()
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    val currentText = if (isPickup) pickup.text.toString() else destination.text.toString()
+                    if (currentText.trim() == query) AlertDialog.Builder(this)
+                        .setMessage("მისამართის ძებნა ვერ მოხერხდა. შეამოწმეთ ინტერნეტი და სცადეთ თავიდან.")
+                        .setPositiveButton("კარგი", null).show()
+                }
+            }
         }
     }
 
@@ -294,15 +329,34 @@ class MainActivity : ComponentActivity() {
             } catch (_: Exception) { }
         }
     }
+    private fun clearRoute(message: String? = null) {
+        routeRequestId++
+        routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
+        routeLine = null
+        if (message != null) {
+            estimate.text = message
+            eta.text = "A və B nöqtələrini seçdikdən sonra marşrut hesablanacaq."
+        }
+    }
+
     private fun updateRoute() {
         val a = pickupPoint ?: return
         val b = destinationPoint ?: return
+        val requestId = ++routeRequestId
+        estimate.text = "Marşrut hesablanır..."
+        eta.text = "Yol məlumatları yoxlanılır"
         thread {
             try {
-                val url = URL("https://router.project-osrm.org/route/v1/driving/${a.longitude},${a.latitude};${b.longitude},${b.latitude}?overview=full&geometries=geojson")
-                val conn = (url.openConnection() as HttpURLConnection).apply { connectTimeout = 9000; readTimeout = 12000 }
+                val url = URL("https://router.project-osrm.org/route/v1/driving/${a.longitude},${a.latitude};${b.longitude},${b.latitude}?overview=full&geometries=geojson&steps=true")
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 10000; readTimeout = 15000
+                    setRequestProperty("User-Agent", "INTAXI-Android/1.0")
+                }
                 val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
                 conn.disconnect()
+                if (json.optString("code") != "Ok" || json.optJSONArray("routes")?.length() == 0) {
+                    throw IllegalStateException("No road route")
+                }
                 val route = json.getJSONArray("routes").getJSONObject(0)
                 val km = route.getDouble("distance") / 1000.0
                 val minutes = route.getDouble("duration") / 60.0
@@ -312,13 +366,30 @@ class MainActivity : ComponentActivity() {
                     val pair = coordinates.getJSONArray(i)
                     routePoints.add(LatLng(pair.getDouble(1), pair.getDouble(0)))
                 }
+                if (routePoints.size < 2) throw IllegalStateException("Invalid route geometry")
                 val price = calculateRouteFare(routePoints, km, minutes, selectedTariff)
                 runOnUiThread {
-                    estimate.text = String.format(Locale.US, "A–B: %.1f km  •  %.0f dəqiqə  •  Təxmini qiymət: %.2f ₾", km, minutes, price)
-                    eta.text = "A nöqtəsinə sürücünün çatma vaxtı: sürücü GPS-i və canlı sifariş sistemi qoşulanda hesablanacaq."
+                    if (requestId != routeRequestId) return@runOnUiThread
+                    routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
+                    routeLine = map?.addPolyline(
+                        PolylineOptions().addAll(routePoints).color(Color.rgb(190, 40, 65)).width(6f)
+                    )
+                    val middle = routePoints[routePoints.size / 2]
+                    val zoom = when {
+                        km > 45 -> 8.5
+                        km > 20 -> 9.5
+                        km > 8 -> 10.8
+                        km > 3 -> 12.0
+                        else -> 14.0
+                    }
+                    map?.animateCamera(CameraUpdateFactory.newLatLngZoom(middle, zoom))
+                    estimate.text = String.format(Locale.US, "Marşrut: %.1f km  •  %.0f dəq", km, minutes)
+                    eta.text = String.format(Locale.US, "%s tarif · Təxmini qiymət: %.2f ₾", selectedTariff, price)
                 }
             } catch (_: Exception) {
-                runOnUiThread { estimate.text = "Marşrut hesablanmadı. Ünvanları və internet bağlantısını yoxlayın." }
+                runOnUiThread {
+                    if (requestId == routeRequestId) clearRoute("Marşrut tapılmadı. Ünvanları və interneti yoxlayın.")
+                }
             }
         }
     }
@@ -401,7 +472,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
             // Route geometry must pass close to a supplied road marker.
-            if (bestDistance <= 350.0 && crossings.none { kotlin.math.abs(it - bestAlongRoute) < 700.0 }) {
+            val nearestIndex = cumulative.indices.minByOrNull { kotlin.math.abs(cumulative[it] - bestAlongRoute) } ?: 0
+            val beforeIndex = (nearestIndex - 2).coerceAtLeast(0)
+            val afterIndex = (nearestIndex + 2).coerceAtMost(routePoints.lastIndex)
+            val changesArea = isInsideKnownCity(routePoints[beforeIndex]) != isInsideKnownCity(routePoints[afterIndex])
+            if (bestDistance <= 350.0 && changesArea && crossings.none { kotlin.math.abs(it - bestAlongRoute) < 700.0 }) {
                 crossings.add(bestAlongRoute.coerceIn(0.0, routeMeters))
             }
         }
@@ -449,13 +524,14 @@ class MainActivity : ComponentActivity() {
 
     private fun requestTaxi() {
         if (pickupPoint == null || destinationPoint == null) {
-            AlertDialog.Builder(this).setMessage("A და B მისამართlarını seçin və ya xəritədə pin qoyun.")
+            AlertDialog.Builder(this).setTitle("İNTAXİ")
+                .setMessage("Əvvəlcə A — götürülmə və B — gediləcək ünvanı seçin.")
                 .setPositiveButton("კარგი", null).show()
             return
         }
-        AlertDialog.Builder(this).setTitle("İNTAXİ")
-            .setMessage("A və B nöqtələri seçilib. Sifarişin sürücüyə göndərilməsi üçün server hələ qoşulmayıb.")
-            .setPositiveButton("კარგი", null).show()
+        AlertDialog.Builder(this).setTitle("Sifariş vermək")
+            .setMessage("Marşrut və təxmini qiymət hesablanıb. Canlı sürücü sifarişlərini göndərmək üçün server hələ qoşulmayıb.")
+            .setPositiveButton("Bağla", null).show()
     }
 
     private fun requestLocationPermission() {
