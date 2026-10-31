@@ -30,6 +30,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -158,7 +159,7 @@ class MainActivity : ComponentActivity() {
             "აპლიკაციის შესახებ" to "Tətbiq haqqında", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "İNTAXİ sürücü tətbiqi. Versiya 0.3.0",
             "გასვლა" to "Çıxış", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Giriş sistemi hələ əlavə edilməyib.",
             "აპლიკაციის ენა" to "Tətbiqin dili", "ენა" to "Dil",
-            "ნავიგაცია" to "Naviqasiya", "ნავიგაციის აპლიკაცია" to "Naviqasiya tətbiqi", "რუკა" to "Xəritə",
+            "ნავიგაცია" to "Naviqasiya", "ნავიგაციის აპლიკაცია" to "Naviqasiya tətbiqi", "ავტომატური ნავიგაცია" to "Avtomatik naviqasiya", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın" to "Sifarişi qəbul edəndə seçilmiş tətbiq özü açılsın", "რუკა" to "Xəritə",
             "3D რუკა" to "3D xəritə", "რუკის დახრილი 3D ხედვა" to "Xəritənin maili 3D görünüşü",
             "რუკის ავტომატური ბრუნვა" to "Xəritənin avtomatik fırlanması", "მოძრაობის მიმართულების მიხედვით" to "Hərəkət istiqamətinə uyğun",
             "სიჩქარის გაფრთხილება" to "Sürət xəbərdarlığı", "სიჩქარის ზღვრის გადაჭერებისას" to "Sürət həddi keçildikdə",
@@ -195,7 +196,7 @@ class MainActivity : ComponentActivity() {
             "აპლიკაციის შესახებ" to "О приложении", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "Приложение водителя İNTAXİ. Версия 0.3.0",
             "გასვლა" to "Выйти", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Система входа ещё не добавлена.",
             "აპლიკაციის ენა" to "Язык приложения", "ენა" to "Язык",
-            "ნავიგაცია" to "Навигация", "ნავიგაციის აპლიკაცია" to "Навигационное приложение", "რუკა" to "Карта",
+            "ნავიგაცია" to "Навигация", "ნავიგაციის აპლიკაცია" to "Навигационное приложение", "ავტომატური ნავიგაცია" to "Автоматическая навигация", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın" to "Открывать выбранное приложение при принятии заказа", "რუკა" to "Карта",
             "3D რუკა" to "3D-карта", "რუკის დახრილი 3D ხედვა" to "Наклонный 3D-вид карты",
             "რუკის ავტომატური ბრუნვა" to "Автоматический поворот карты", "მოძრაობის მიმართულების მიხედვით" to "По направлению движения",
             "სიჩქარის გაფრთხილება" to "Предупреждение о скорости", "სიჩქარის ზღვარი" to "Ограничение скорости",
@@ -231,7 +232,7 @@ class MainActivity : ComponentActivity() {
             "აპლიკაციის შესახებ" to "About app", "მძღოლის აპლიკაცია İNTAXİ. ვერსია 0.3.0" to "İNTAXİ Driver app. Version 0.3.0",
             "გასვლა" to "Log out", "შესვლის სისტემა ჯერ არ არის დამატებული." to "Login has not been implemented yet.",
             "აპლიკაციის ენა" to "App language", "ენა" to "Language",
-            "ნავიგაცია" to "Navigation", "ნავიგაციის აპლიკაცია" to "Navigation app", "რუკა" to "Map",
+            "ნავიგაცია" to "Navigation", "ნავიგაციის აპლიკაცია" to "Navigation app", "ავტომატური ნავიგაცია" to "Automatic navigation", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın" to "Open the selected app automatically when accepting an order", "რუკა" to "Map",
             "3D რუკა" to "3D map", "რუკის დახრილი 3D ხედვა" to "Tilted 3D map view",
             "რუკის ავტომატური ბრუნვა" to "Automatic map rotation", "მოძრაობის მიმართულების მიხედვით" to "Based on direction of travel",
             "სიჩქარის გაფრთხილება" to "Speed warning", "სიჩქარის ზღვარი" to "Speed limit",
@@ -507,6 +508,9 @@ class MainActivity : ComponentActivity() {
                 demoOrderActive = false
                 demoTripStarted = false
                 onlinePanel.visibility = View.GONE
+                if (prefs.getBoolean("navigation_auto", false)) {
+                    launchSelectedNavigation(41.475842, 44.812081)
+                }
                 routeTo(41.475842, 44.812081, "მარნეულის ცენტრალური მოედანი")
                 showTripControls(mapFrame, false)
             }
@@ -568,6 +572,60 @@ class MainActivity : ComponentActivity() {
             }
         }
         throw IllegalStateException("Hər iki marşrut serveri əlçatmazdır", lastError)
+    }
+
+    private fun navigationShortcutView(): View {
+        val selected = prefs.getString("navigation", "İNTAXİ რუკა") ?: "İNTAXİ რუკა"
+        val packageName = when (selected) {
+            "Google Maps" -> "com.google.android.apps.maps"
+            "Waze" -> "com.waze"
+            else -> null
+        }
+        if (packageName != null) {
+            try {
+                val icon = packageManager.getApplicationIcon(packageName)
+                return ImageView(this).apply {
+                    setImageDrawable(icon)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setPadding(dp(7), dp(7), dp(7), dp(7))
+                    background = rounded(Color.rgb(45, 45, 52), 12)
+                    contentDescription = selected
+                    setOnClickListener { launchSelectedNavigation(navigationTargetLat, navigationTargetLon) }
+                }
+            } catch (_: Exception) { }
+        }
+        return TextView(this).apply {
+            text = if (selected == "Waze") "W" else if (selected == "Google Maps") "G" else "İ"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            setTextColor(white)
+            setTypeface(null, Typeface.BOLD)
+            background = rounded(Color.rgb(45, 45, 52), 12)
+            contentDescription = selected
+            setOnClickListener { launchSelectedNavigation(navigationTargetLat, navigationTargetLon) }
+        }
+    }
+
+    private fun launchSelectedNavigation(destinationLat: Double, destinationLon: Double) {
+        val selected = prefs.getString("navigation", "İNTAXİ რუკა") ?: "İNTAXİ რუკა"
+        if (selected == "İNTAXİ რუკა") {
+            notice("ნავიგაცია", "İNTAXİ-ის შიდა რუკა უკვე აჩვენებს მარშრუტს.")
+            return
+        }
+        try {
+            val intent = when (selected) {
+                "Google Maps" -> Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse("google.navigation:q=$destinationLat,$destinationLon&mode=d")
+                ).setPackage("com.google.android.apps.maps")
+                "Waze" -> Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://waze.com/ul?ll=$destinationLat,$destinationLon&navigate=yes")
+                ).setPackage("com.waze")
+                else -> return
+            }
+            startActivity(intent)
+        } catch (_: Exception) {
+            notice("ნავიგაცია", "$selected არ არის დაყენებული ან ვერ გაიხსნა. დააყენეთ აპლიკაცია ან აირჩიეთ სხვა ნავიგაცია პარამეტრებში.")
+        }
     }
 
     private fun routeToFrom(fromLat: Double, fromLon: Double, destinationLat: Double, destinationLon: Double, label: String) {
@@ -647,15 +705,26 @@ class MainActivity : ComponentActivity() {
             background = rounded(Color.rgb(24, 24, 28), 16)
             elevation = dp(10).toFloat()
         }
-        panelView.addView(TextView(this).apply {
+        val tripHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        tripHeader.addView(TextView(this).apply {
             text = if (passengerPicked) "მიმდინარეობს მგზავრობა · თბილისი, ორთაჭალა" else "მგზავრამდე · მარნეულის ცენტრალური მოედანი"
             textSize = 15f; setTextColor(white); setTypeface(null, Typeface.BOLD)
-        })
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        if (!prefs.getBoolean("navigation_auto", false)) {
+            tripHeader.addView(navigationShortcutView(), LinearLayout.LayoutParams(dp(44), dp(44)))
+        }
+        panelView.addView(tripHeader)
         panelView.addView(Button(this).apply {
             text = if (passengerPicked) "სატესტო მგზავრობის დასრულება" else "სატესტო მგზავრი ავიყვანე"
             isAllCaps = false; setTextColor(white); background = rounded(red, 10)
             setOnClickListener {
                 if (!passengerPicked) {
+                    if (prefs.getBoolean("navigation_auto", false)) {
+                        launchSelectedNavigation(41.6774, 44.8332)
+                    }
                     routeToFrom(41.475842, 44.812081, 41.6774, 44.8332, "თბილისი, ორთაჭალა")
                     showTripControls(mapFrame, true)
                 } else {
@@ -1233,6 +1302,7 @@ class MainActivity : ComponentActivity() {
         p.addView(setting("ნავიგაციის აპლიკაცია", prefs.getString("navigation", "İNTAXİ რუკა") ?: "İNTAXİ რუკა") {
             choose("ნავიგაცია", listOf("İNTAXİ რუკა", "Google Maps", "Waze"), "navigation")
         })
+        switchRow(p, "ავტომატური ნავიგაცია", "შეკვეთის მიღებისას seçilmiş tətbiqi özü açsın", "navigation_auto", false, true)
         p.addView(title("რუკა"))
         switchRow(p, "3D რუკა", "რუკის დახრილი 3D ხედვა", "map_3d", false, true)
         switchRow(p, "რუკის ავტომატური ბრუნვა", "მოძრაობის მიმართულების მიხედვით", "map_rotate", true, true)
