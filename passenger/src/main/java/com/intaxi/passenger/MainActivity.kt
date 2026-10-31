@@ -317,19 +317,41 @@ class MainActivity : ComponentActivity() {
 
     private fun reverseGeocode(point: LatLng, mode: String) {
         thread {
-            try {
-                val results = Geocoder(this, Locale("ka", "GE")).getFromLocation(point.latitude, point.longitude, 3)
-                val address = results.orEmpty().firstOrNull { it.countryCode.equals("GE", true) }?.let {
-                    listOfNotNull(it.thoroughfare, it.subThoroughfare, it.locality, it.subAdminArea).distinct().joinToString(", ")
-                }?.ifBlank { null } ?: String.format(Locale.US, "%.5f, %.5f", point.latitude, point.longitude)
-                runOnUiThread { suppressTextSearch = true
-                    if (mode == "A") { pickupPoint = point; pickup.setText(address); pickup.setSelection(pickup.text.length) }
-                    else { destinationPoint = point; destination.setText(address); destination.setSelection(destination.text.length) }
-                    suppressTextSearch = false
+            val label = try {
+                val url = URL("https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=jsonv2&addressdetails=1")
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 9000; readTimeout = 10000
+                    setRequestProperty("User-Agent", "INTAXI-Android/1.0 (Georgia taxi app)")
+                    setRequestProperty("Accept-Language", "ka,en")
                 }
-            } catch (_: Exception) { }
+                val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                connection.disconnect()
+                val address = json.optJSONObject("address")
+                val street = listOfNotNull(
+                    address?.optString("road")?.takeIf { it.isNotBlank() },
+                    address?.optString("house_number")?.takeIf { it.isNotBlank() }
+                ).joinToString(" ")
+                val town = listOf("city", "town", "village", "municipality", "suburb")
+                    .mapNotNull { key -> address?.optString(key)?.takeIf { it.isNotBlank() } }
+                    .distinct().firstOrNull().orEmpty()
+                listOf(street, town).filter { it.isNotBlank() }.joinToString(", ")
+                    .ifBlank { json.optString("display_name").split(",").take(3).joinToString(", ") }
+                    .ifBlank { String.format(Locale.US, "%.5f, %.5f", point.latitude, point.longitude) }
+            } catch (_: Exception) {
+                String.format(Locale.US, "%.5f, %.5f", point.latitude, point.longitude)
+            }
+            runOnUiThread {
+                suppressTextSearch = true
+                if (mode == "A") {
+                    pickupPoint = point; pickup.setText(label); pickup.setSelection(pickup.text.length)
+                } else {
+                    destinationPoint = point; destination.setText(label); destination.setSelection(destination.text.length)
+                }
+                suppressTextSearch = false
+            }
         }
     }
+
     private fun clearRoute(message: String? = null) {
         routeRequestId++
         routeLine?.let { try { map?.removePolyline(it) } catch (_: Exception) { } }
@@ -377,10 +399,10 @@ class MainActivity : ComponentActivity() {
                     )
                     val middle = routePoints[routePoints.size / 2]
                     val zoom = when {
-                        km > 45 -> 8.5
-                        km > 20 -> 9.5
-                        km > 8 -> 10.8
-                        km > 3 -> 12.0
+                        km > 45 -> 7.8
+                        km > 20 -> 8.7
+                        km > 8 -> 10.0
+                        km > 3 -> 11.5
                         else -> 14.0
                     }
                     map?.animateCamera(CameraUpdateFactory.newLatLngZoom(middle, zoom))
