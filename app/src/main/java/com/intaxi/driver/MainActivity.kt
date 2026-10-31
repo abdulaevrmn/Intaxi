@@ -477,15 +477,7 @@ class MainActivity : ComponentActivity() {
             setTextColor(Color.rgb(95, 220, 145))
             setTypeface(null, Typeface.BOLD)
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        val isCash = true
-        farePaymentRow.addView(TextView(this).apply {
-            text = if (isCash) "●  ნაღდი" else "●  ბარათი"
-            textSize = 13f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(if (isCash) Color.rgb(95, 220, 145) else Color.rgb(100, 175, 255))
-            setPadding(dp(9), dp(7), dp(9), dp(7))
-            background = rounded(if (isCash) Color.rgb(25, 65, 47) else Color.rgb(28, 48, 75), 10)
-        })
+        farePaymentRow.addView(paymentBadge("ნაღდი"))
         cardView.addView(farePaymentRow)
 
         cardView.addView(TextView(this).apply {
@@ -600,11 +592,6 @@ class MainActivity : ComponentActivity() {
                     val rows = routeRows
                     (rows.getChildAt(0) as? LinearLayout)?.let { line ->
                         (line.getChildAt(1) as? LinearLayout)?.let { labels ->
-                            (labels.getChildAt(0) as? TextView)?.text = "%.1f კმ · %d წთ  ·  მარნეულის ცენტრალური მოედანი".format(Locale.US, 0.0, 0)
-                        }
-                    }
-                    (rows.getChildAt(0) as? LinearLayout)?.let { line ->
-                        (line.getChildAt(1) as? LinearLayout)?.let { labels ->
                             (labels.getChildAt(0) as? TextView)?.text = "მგზავრამდე  ·  მარნეულის ცენტრალური მოედანი"
                             (labels.getChildAt(1) as? TextView)?.text = "მანძილი და დრო GPS-ის მიხედვით განისაზღვრება"
                         }
@@ -618,6 +605,18 @@ class MainActivity : ComponentActivity() {
                 }
             } catch (_: Exception) { }
         }.start()
+    }
+
+    private fun paymentBadge(paymentMethod: String): TextView {
+        val isCash = paymentMethod == "ნაღდი"
+        return TextView(this).apply {
+            text = if (isCash) "●  ნაღდი" else "●  ბარათი"
+            textSize = 13f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(if (isCash) Color.rgb(95, 220, 145) else Color.rgb(100, 175, 255))
+            setPadding(dp(9), dp(7), dp(9), dp(7))
+            background = rounded(if (isCash) Color.rgb(25, 65, 47) else Color.rgb(28, 48, 75), 10)
+        }
     }
 
     private fun playOrderAlert() {
