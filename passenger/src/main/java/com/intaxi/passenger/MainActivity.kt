@@ -26,6 +26,8 @@ import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.annotations.Polyline
 import org.maplibre.android.annotations.PolylineOptions
+import org.maplibre.android.annotations.Marker
+import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
@@ -50,6 +52,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var pinConfirm: Button
     private var map: MapLibreMap? = null
     private var routeLine: Polyline? = null
+    private var pickupMarker: Marker? = null
+    private var destinationMarker: Marker? = null
     private var routeRequestId = 0
     private var routeReady = false
     private var selectedTariff = "სტანდარტი"
@@ -82,6 +86,7 @@ class MainActivity : ComponentActivity() {
                     if (pinMode != null) {
                         val mode = pinMode!!
                         if (mode == "A") pickupPoint = point else destinationPoint = point
+                        setPointMarker(point, mode)
                         clearRoute("Yeni nöqtə seçildi. Təsdiqlədikdən sonra marşrut yenilənəcək.")
                         pinHint.text = if (mode == "A") "A nöqtəsi seçildi — götürülmə yeri" else "B nöqtəsi seçildi — gediləcək yer"
                         reverseGeocode(point, mode)
@@ -202,7 +207,8 @@ class MainActivity : ComponentActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 if (suppressTextSearch) return
                 val query = s?.toString()?.trim().orEmpty()
-                if (isPickup) pickupPoint = null else destinationPoint = null
+                if (isPickup) { pickupPoint = null; pickupMarker?.let { map?.removeMarker(it) }; pickupMarker = null }
+                else { destinationPoint = null; destinationMarker?.let { map?.removeMarker(it) }; destinationMarker = null }
                 clearRoute("A და B მისამართები შეიცვალა. აირჩიეთ ორივე წერტილი თავიდან.")
                 val previous = if (isPickup) pickupSearchRunnable else destinationSearchRunnable
                 previous?.let { handler.removeCallbacks(it) }
@@ -286,6 +292,7 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 destinationPoint = point; destination.setText(labels[which]); destination.setSelection(destination.text.length)
                             }
+                            setPointMarker(point, if (isPickup) "A" else "B")
                             suppressTextSearch = false
                             map?.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 16.0))
                             updateRoute()
@@ -314,6 +321,16 @@ class MainActivity : ComponentActivity() {
             val manager = getSystemService(LOCATION_SERVICE) as LocationManager
             manager.getProviders(true).mapNotNull { manager.getLastKnownLocation(it) }.maxByOrNull { it.time }
         } catch (_: SecurityException) { null }
+    }
+
+    private fun setPointMarker(point: LatLng, mode: String) {
+        if (mode == "A") {
+            pickupMarker?.let { try { map?.removeMarker(it) } catch (_: Exception) { } }
+            pickupMarker = map?.addMarker(MarkerOptions().position(point).title("A · ჩასხდომის ადგილი"))
+        } else {
+            destinationMarker?.let { try { map?.removeMarker(it) } catch (_: Exception) { } }
+            destinationMarker = map?.addMarker(MarkerOptions().position(point).title("B · დანიშნულება"))
+        }
     }
 
     private fun reverseGeocode(point: LatLng, mode: String) {
